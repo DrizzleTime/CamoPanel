@@ -10,13 +10,13 @@ CamoPanel 是一个面向 Linux 单机的容器管理面板。
 - `web`
   - React 19 + Bun SPA，负责登录、应用商店、OpenResty、项目管理、审批中心和 Copilot UI。
 - `templates`
-  - 本地应用模板仓库。MVP 内置 `postgres` 和 `wordpress`。
+  - 本地应用模板仓库。MVP 内置 `openresty`、`postgres` 和 `wordpress`。
 
 ## 运行前提
 
 - Linux
 - Docker Engine + `docker compose`
-- 一个固定的 OpenResty 容器（仅创建站点时必需）
+- 一个固定的 OpenResty 容器（可通过应用商店 `openresty` 模板部署，仅创建站点时必需）
 - Go 1.25+
 - Bun 1.3+
 
@@ -51,7 +51,8 @@ env GOPROXY=https://goproxy.cn,direct go run ./cmd/camopanel
 - OpenResty 容器名：`camopanel-openresty`
 - OpenResty 数据目录：`${CAMO_DATA_DIR}/openresty`
 - OpenResty 约定挂载：
-  - `${CAMO_DATA_DIR}/openresty/conf.d` -> `/etc/openresty/conf.d`
+  - `${CAMO_DATA_DIR}/openresty/conf.d` -> `/etc/nginx/conf.d`
+  - `${CAMO_DATA_DIR}/openresty/conf.d` -> `/etc/openresty/conf.d`（兼容旧路径）
   - `${CAMO_DATA_DIR}/openresty/www` -> `/var/www/openresty`
 - 初始管理员：`admin / admin123`
 
@@ -66,6 +67,7 @@ mkdir -p ./data/openresty/conf.d ./data/openresty/www
 docker run -d \
   --name camopanel-openresty \
   -p 80:80 \
+  -v "$(pwd)/data/openresty/conf.d:/etc/nginx/conf.d" \
   -v "$(pwd)/data/openresty/conf.d:/etc/openresty/conf.d" \
   -v "$(pwd)/data/openresty/www:/var/www/openresty" \
   openresty/openresty:alpine

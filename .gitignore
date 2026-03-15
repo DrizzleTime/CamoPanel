@@ -4,6 +4,7 @@ server/.cache
 server/.tmp
 server/camopanel
 server/data
+server/internal/webui/dist
 data
 tmp
 *.log

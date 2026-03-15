@@ -25,6 +25,9 @@ import type { Project, TemplateParam, TemplateSpec } from "../lib/types";
 type StoreStatusFilter = "all" | "deployed" | "available";
 type StoreCategoryFilter = "all" | "site" | "database" | "general";
 
+const MANAGED_OPENRESTY_TEMPLATE_ID = "openresty";
+const MANAGED_OPENRESTY_PROJECT_NAME = "openresty";
+
 const STATUS_OPTIONS: Array<{ key: StoreStatusFilter; label: string }> = [
   { key: "all", label: "全部" },
   { key: "deployed", label: "已部署" },
@@ -39,6 +42,7 @@ const CATEGORY_OPTIONS: Array<{ key: StoreCategoryFilter; label: string }> = [
 ];
 
 const TEMPLATE_CATEGORY_MAP: Record<string, Exclude<StoreCategoryFilter, "all">> = {
+  openresty: "site",
   postgres: "database",
   wordpress: "site",
 };
@@ -86,11 +90,15 @@ export function StorePage() {
 
   const initialValues = useMemo(() => {
     if (!activeTemplate) return {};
-    return Object.fromEntries(
+    const values = Object.fromEntries(
       activeTemplate.params
         .filter((param) => param.default !== undefined)
         .map((param) => [param.name, param.default]),
     );
+    if (isManagedOpenRestyTemplate(activeTemplate)) {
+      values.projectName = MANAGED_OPENRESTY_PROJECT_NAME;
+    }
+    return values;
   }, [activeTemplate]);
 
   useEffect(() => {
@@ -144,6 +152,7 @@ export function StorePage() {
 
   const totalTemplates = templates.length;
   const pendingTemplateCount = Math.max(totalTemplates - deployedTemplateCount, 0);
+  const projectNameLocked = isManagedOpenRestyTemplate(activeTemplate);
 
   return (
     <div className="page-grid store-page">
@@ -298,8 +307,12 @@ export function StorePage() {
               label="项目名"
               name="projectName"
               rules={[{ required: true, message: "请输入项目名" }]}
+              extra={projectNameLocked ? "固定 OpenResty 项目，部署后会直接供网站管理页复用。" : undefined}
             >
-              <Input placeholder={`${activeTemplate.id}-demo`} />
+              <Input
+                placeholder={projectNameLocked ? MANAGED_OPENRESTY_PROJECT_NAME : `${activeTemplate.id}-demo`}
+                disabled={projectNameLocked}
+              />
             </Form.Item>
             {activeTemplate.params.map((param) => (
               <TemplateField key={param.name} param={param} />
@@ -420,4 +433,8 @@ function renderTemplateIcon(template: TemplateSpec) {
     default:
       return <AppstoreOutlined />;
   }
+}
+
+function isManagedOpenRestyTemplate(template: Pick<TemplateSpec, "id"> | null | undefined) {
+  return template?.id === MANAGED_OPENRESTY_TEMPLATE_ID;
 }

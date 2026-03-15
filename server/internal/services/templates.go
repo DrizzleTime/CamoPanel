@@ -39,6 +39,13 @@ type TemplateSpec struct {
 	HealthHints []string        `json:"health_hints" yaml:"health_hints"`
 }
 
+type TemplateRuntime struct {
+	ProjectName          string
+	OpenRestyContainer   string
+	OpenRestyHostConfDir string
+	OpenRestyHostSiteDir string
+}
+
 type LoadedTemplate struct {
 	Spec            TemplateSpec
 	Path            string
@@ -147,14 +154,15 @@ func (t *LoadedTemplate) ValidateAndNormalize(input map[string]any) (map[string]
 	return normalized, nil
 }
 
-func (t *LoadedTemplate) Render(input map[string]any) (string, error) {
+func (t *LoadedTemplate) Render(input map[string]any, runtime TemplateRuntime) (string, error) {
 	tpl, err := template.New("compose").Option("missingkey=error").Parse(t.ComposeTemplate)
 	if err != nil {
 		return "", fmt.Errorf("parse compose template: %w", err)
 	}
 
 	payload := map[string]any{
-		"Values": input,
+		"Values":  input,
+		"Runtime": runtime,
 	}
 
 	var buf bytes.Buffer

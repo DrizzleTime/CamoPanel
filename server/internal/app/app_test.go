@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"camopanel/server/internal/config"
@@ -239,17 +240,88 @@ func TestCreateWebsiteApprovalRequiresOpenResty(t *testing.T) {
 	}
 }
 
+func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
+	instance := newTestApp(t)
+	executor := &fakeExecutor{runtimeStatus: "running"}
+	instance.executor = executor
+
+	approval, err := instance.createDeployApproval("tester", "ui", createProjectRequest{
+		Name:       "anything",
+		TemplateID: managedOpenRestyTemplateID,
+		Parameters: map[string]any{"port": 8088},
+	})
+	if err != nil {
+		t.Fatalf("create approval: %v", err)
+	}
+
+	if approval.TargetID != managedOpenRestyProjectID {
+		t.Fatalf("expected target id %s, got %s", managedOpenRestyProjectID, approval.TargetID)
+	}
+
+	if _, err := instance.approveRequest(context.Background(), approval.ID, "tester"); err != nil {
+		t.Fatalf("approve request: %v", err)
+	}
+
+	if executor.lastProject != managedOpenRestyProjectID {
+		t.Fatalf("expected fixed project name %s, got %s", managedOpenRestyProjectID, executor.lastProject)
+	}
+
+	rendered, err := os.ReadFile(executor.lastCompose)
+	if err != nil {
+		t.Fatalf("read compose: %v", err)
+	}
+
+	confDir := filepath.Join(instance.cfg.OpenRestyDataDir, "conf.d")
+	siteDir := filepath.Join(instance.cfg.OpenRestyDataDir, "www")
+	content := string(rendered)
+	if !strings.Contains(content, "container_name: camopanel-openresty") {
+		t.Fatalf("expected fixed container name, got %s", content)
+	}
+	if !strings.Contains(content, confDir+":/etc/nginx/conf.d") {
+		t.Fatalf("expected nginx conf bind, got %s", content)
+	}
+	if !strings.Contains(content, confDir+":/etc/openresty/conf.d") {
+		t.Fatalf("expected compatibility conf bind, got %s", content)
+	}
+	if !strings.Contains(content, siteDir+":/var/www/openresty") {
+		t.Fatalf("expected site dir bind, got %s", content)
+	}
+}
+
+func TestManagedOpenRestyOnlyAllowsSingleDeployment(t *testing.T) {
+	instance := newTestApp(t)
+	executor := &fakeExecutor{runtimeStatus: "running"}
+	instance.executor = executor
+
+	approval, err := instance.createDeployApproval("tester", "ui", createProjectRequest{
+		Name:       managedOpenRestyProjectID,
+		TemplateID: managedOpenRestyTemplateID,
+		Parameters: map[string]any{"port": 80},
+	})
+	if err != nil {
+		t.Fatalf("create first approval: %v", err)
+	}
+
+	if _, err := instance.approveRequest(context.Background(), approval.ID, "tester"); err != nil {
+		t.Fatalf("approve first request: %v", err)
+	}
+
+	_, err = instance.createDeployApproval("tester", "ui", createProjectRequest{
+		Name:       "another-openresty",
+		TemplateID: managedOpenRestyTemplateID,
+		Parameters: map[string]any{"port": 8080},
+	})
+	if err == nil {
+		t.Fatalf("expected duplicate managed openresty deployment to fail")
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 
 	root := t.TempDir()
 	templatesDir := filepath.Join(root, "templates")
-	templateDir := filepath.Join(templatesDir, "demo")
-	if err := os.MkdirAll(templateDir, 0o755); err != nil {
-		t.Fatalf("mkdir template dir: %v", err)
-	}
-
-	spec := `id: demo
+	writeTemplate(t, templatesDir, "demo", `id: demo
 name: Demo Template
 version: "1"
 description: test
@@ -260,21 +332,33 @@ params:
   - name: password
     type: secret
     required: true
-`
-	compose := `services:
+`, `services:
   app:
     image: nginx
     ports:
       - "{{ .Values.port }}:80"
     environment:
       PASSWORD: {{ .Values.password }}
-`
-	if err := os.WriteFile(filepath.Join(templateDir, "template.yaml"), []byte(spec), 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(templateDir, "compose.yaml.tmpl"), []byte(compose), 0o644); err != nil {
-		t.Fatalf("write compose: %v", err)
-	}
+`)
+	writeTemplate(t, templatesDir, managedOpenRestyTemplateID, `id: openresty
+name: OpenResty
+version: "1"
+description: managed openresty
+params:
+  - name: port
+    type: number
+    required: true
+`, `services:
+  app:
+    image: openresty/openresty:alpine
+    container_name: {{ .Runtime.OpenRestyContainer }}
+    ports:
+      - "{{ .Values.port }}:80"
+    volumes:
+      - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
+      - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/openresty/conf.d"
+      - "{{ .Runtime.OpenRestyHostSiteDir }}:/var/www/openresty"
+`)
 
 	cfg := config.Config{
 		HTTPAddr:           ":0",
@@ -296,4 +380,19 @@ params:
 	}
 	instance.openresty = &fakeOpenResty{ready: true}
 	return instance
+}
+
+func writeTemplate(t *testing.T, root, id, spec, compose string) {
+	t.Helper()
+
+	templateDir := filepath.Join(root, id)
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatalf("mkdir template dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "template.yaml"), []byte(spec), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "compose.yaml.tmpl"), []byte(compose), 0o644); err != nil {
+		t.Fatalf("write compose: %v", err)
+	}
 }

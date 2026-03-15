@@ -14,8 +14,9 @@ import (
 var ErrOpenRestyUnavailable = errors.New("openresty is unavailable")
 
 const (
-	openRestyContainerConfDir = "/etc/openresty/conf.d"
-	openRestyContainerSiteDir = "/var/www/openresty"
+	openRestyContainerConfDir       = "/etc/nginx/conf.d"
+	openRestyLegacyContainerConfDir = "/etc/openresty/conf.d"
+	openRestyContainerSiteDir       = "/var/www/openresty"
 )
 
 type OpenRestyStatus struct {
@@ -178,7 +179,7 @@ func (s *OpenRestyService) hasRequiredMounts(status ContainerStatus) bool {
 	for _, mount := range status.Mounts {
 		source := filepath.Clean(mount.Source)
 		switch path.Clean(mount.Destination) {
-		case openRestyContainerConfDir:
+		case openRestyContainerConfDir, openRestyLegacyContainerConfDir:
 			hasConf = source == expectedConf
 		case openRestyContainerSiteDir:
 			hasSite = source == expectedSite

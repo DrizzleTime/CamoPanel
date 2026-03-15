@@ -28,8 +28,15 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	dataDir := env("CAMO_DATA_DIR", filepath.Join(".", "data"))
-	templatesDir := env("CAMO_TEMPLATES_DIR", detectTemplatesDir())
+	dataDir, err := filepath.Abs(env("CAMO_DATA_DIR", filepath.Join(".", "data")))
+	if err != nil {
+		return Config{}, fmt.Errorf("resolve CAMO_DATA_DIR: %w", err)
+	}
+
+	templatesDir, err := filepath.Abs(env("CAMO_TEMPLATES_DIR", detectTemplatesDir()))
+	if err != nil {
+		return Config{}, fmt.Errorf("resolve CAMO_TEMPLATES_DIR: %w", err)
+	}
 	sessionSecret := env("CAMO_SESSION_SECRET", "camo-dev-secret-change-me")
 
 	cfg := Config{

@@ -59,7 +59,7 @@ params:
 		t.Fatalf("validate input: %v", err)
 	}
 
-	rendered, err := item.Render(normalized)
+	rendered, err := item.Render(normalized, TemplateRuntime{})
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
@@ -84,5 +84,31 @@ func TestTemplateCatalogRejectsMissingRequiredParam(t *testing.T) {
 
 	if _, err := item.ValidateAndNormalize(map[string]any{}); err == nil {
 		t.Fatalf("expected missing required param error")
+	}
+}
+
+func TestTemplateRenderSupportsRuntimeContext(t *testing.T) {
+	item := LoadedTemplate{
+		ComposeTemplate: `services:
+  app:
+    container_name: {{ .Runtime.OpenRestyContainer }}
+    volumes:
+      - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
+`,
+	}
+
+	rendered, err := item.Render(map[string]any{}, TemplateRuntime{
+		OpenRestyContainer:   "camopanel-openresty",
+		OpenRestyHostConfDir: "/var/lib/camopanel/openresty/conf.d",
+	})
+	if err != nil {
+		t.Fatalf("render with runtime: %v", err)
+	}
+
+	if !strings.Contains(rendered, "container_name: camopanel-openresty") {
+		t.Fatalf("expected rendered compose to include container name, got %s", rendered)
+	}
+	if !strings.Contains(rendered, "/var/lib/camopanel/openresty/conf.d:/etc/nginx/conf.d") {
+		t.Fatalf("expected rendered compose to include conf dir bind, got %s", rendered)
 	}
 }

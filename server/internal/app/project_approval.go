@@ -7,8 +7,14 @@ import (
 	"path/filepath"
 
 	"camopanel/server/internal/model"
+	"camopanel/server/internal/services"
 
 	"github.com/google/uuid"
+)
+
+const (
+	managedOpenRestyTemplateID = "openresty"
+	managedOpenRestyProjectID  = "openresty"
 )
 
 type deployApprovalPayload struct {
@@ -24,6 +30,9 @@ type projectActionPayload struct {
 
 func (a *App) createDeployApproval(actorID, source string, req createProjectRequest) (model.ApprovalRequest, error) {
 	normalizedName := normalizeProjectName(req.Name)
+	if req.TemplateID == managedOpenRestyTemplateID {
+		normalizedName = managedOpenRestyProjectID
+	}
 	if !projectNamePattern.MatchString(normalizedName) {
 		return model.ApprovalRequest{}, fmt.Errorf("项目名只能包含小写字母、数字、下划线和中划线")
 	}
@@ -35,6 +44,11 @@ func (a *App) createDeployApproval(actorID, source string, req createProjectRequ
 	if count > 0 {
 		return model.ApprovalRequest{}, fmt.Errorf("项目名已存在")
 	}
+	if req.TemplateID == managedOpenRestyTemplateID {
+		if err := a.ensureManagedOpenRestyAvailable(); err != nil {
+			return model.ApprovalRequest{}, err
+		}
+	}
 
 	templateItem, err := a.templates.Get(req.TemplateID)
 	if err != nil {
@@ -45,7 +59,7 @@ func (a *App) createDeployApproval(actorID, source string, req createProjectRequ
 	if err != nil {
 		return model.ApprovalRequest{}, err
 	}
-	if _, err := templateItem.Render(normalized); err != nil {
+	if _, err := templateItem.Render(normalized, a.templateRuntime(normalizedName)); err != nil {
 		return model.ApprovalRequest{}, err
 	}
 
@@ -78,6 +92,11 @@ func (a *App) executeDeploy(ctx context.Context, payload deployApprovalPayload) 
 	if count > 0 {
 		return fmt.Errorf("项目名已存在")
 	}
+	if payload.TemplateID == managedOpenRestyTemplateID {
+		if err := a.ensureManagedOpenRestyAvailable(); err != nil {
+			return err
+		}
+	}
 
 	templateItem, err := a.templates.Get(payload.TemplateID)
 	if err != nil {
@@ -87,7 +106,7 @@ func (a *App) executeDeploy(ctx context.Context, payload deployApprovalPayload) 
 	if err != nil {
 		return err
 	}
-	rendered, err := templateItem.Render(normalized)
+	rendered, err := templateItem.Render(normalized, a.templateRuntime(payload.Name))
 	if err != nil {
 		return err
 	}
@@ -128,6 +147,26 @@ func (a *App) executeDeploy(ctx context.Context, payload deployApprovalPayload) 
 
 	if err := a.db.Create(&project).Error; err != nil {
 		return err
+	}
+	return nil
+}
+
+func (a *App) templateRuntime(projectName string) services.TemplateRuntime {
+	return services.TemplateRuntime{
+		ProjectName:          projectName,
+		OpenRestyContainer:   a.cfg.OpenRestyContainer,
+		OpenRestyHostConfDir: filepath.Join(a.cfg.OpenRestyDataDir, "conf.d"),
+		OpenRestyHostSiteDir: filepath.Join(a.cfg.OpenRestyDataDir, "www"),
+	}
+}
+
+func (a *App) ensureManagedOpenRestyAvailable() error {
+	var count int64
+	if err := a.db.Model(&model.Project{}).Where("template_id = ?", managedOpenRestyTemplateID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("固定 OpenResty 已存在，不支持重复部署")
 	}
 	return nil
 }
