@@ -143,15 +143,15 @@ sudo ./deploy/install.sh --package https://example.com/camopanel_linux_amd64.tar
 
 默认安装位置：
 
-- 二进制：`/usr/local/bin/camopanel`
-- 数据目录：`/var/lib/camopanel`
+- 二进制：`/opt/camopanel/camopanel`
+- 数据目录：`/opt/camopanel/data`
 - 环境文件：`/etc/camopanel/camopanel.env`
 - service：`/etc/systemd/system/camopanel.service`
 
 ## systemd
 
 `deploy/camopanel.service` 提供了一个最小可用的 `systemd` 单元文件。  
-默认读取 `/etc/camopanel/camopanel.env` 作为环境变量文件，运行目录是 `/var/lib/camopanel`。
+默认读取 `/etc/camopanel/camopanel.env` 作为环境变量文件，运行目录是 `/opt/camopanel/data`。
 
 ## 测试
 
