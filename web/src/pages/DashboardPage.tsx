@@ -193,28 +193,6 @@ export function DashboardPage() {
 
   return (
     <div className="page-grid">
-      <Card
-        className="glass-card"
-        variant="borderless"
-        style={surfaceStyle}
-        styles={{
-          body: {
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 20,
-          },
-        }}
-      >
-        <Typography.Text type="secondary">
-          先看宿主机是否健康，再看项目和站点是否稳定，最后处理异常项。
-        </Typography.Text>
-        <Space wrap>
-          <Tag color={streamTagColor}>{streamTag}</Tag>
-        </Space>
-      </Card>
-
       {error ? <Alert showIcon type="error" message={error} /> : null}
 
       {loading && !data ? (

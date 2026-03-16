@@ -83,13 +83,19 @@ body {
 }
 
 .shell-header-store {
-  width: min(440px, 100%);
-  display: grid;
-  gap: 4px;
+  width: min(760px, 100%);
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .shell-header-search {
-  width: 100%;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.shell-header-filter {
+  flex: 0 0 148px;
 }
 
 .shell-header-hint {
@@ -289,49 +295,6 @@ body {
   margin: 0 !important;
 }
 
-.store-toolbar-card .ant-card-body {
-  padding: 20px 24px;
-}
-
-.store-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: start;
-}
-
-.store-filter-stack {
-  display: grid;
-  gap: 14px;
-}
-
-.store-toolbar-meta {
-  align-self: center;
-}
-
-.store-filter-group {
-  display: grid;
-  gap: 10px;
-}
-
-.store-filter-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #595959;
-}
-
-.store-filter-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.store-filter-list .ant-btn {
-  border-radius: 999px;
-  box-shadow: none;
-}
-
 .store-search-box {
   display: grid;
   gap: 12px;
@@ -519,6 +482,14 @@ body {
     width: 100%;
   }
 
+  .shell-header-store {
+    flex-wrap: wrap;
+  }
+
+  .shell-header-filter {
+    flex: 1 1 160px;
+  }
+
   .shell-page-description {
     white-space: normal;
   }
@@ -544,14 +515,12 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .store-toolbar,
   .page-inline-bar {
     align-items: stretch;
   }
 
   .store-app-card .ant-card-body,
-  .store-hero-card .ant-card-body,
-  .store-toolbar-card .ant-card-body {
+  .store-hero-card .ant-card-body {
     padding: 20px;
   }
 

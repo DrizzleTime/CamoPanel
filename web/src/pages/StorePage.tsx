@@ -12,6 +12,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Select,
   Space,
   Switch,
   Tag,
@@ -139,9 +140,27 @@ export function StorePage() {
           className="shell-header-search"
           onChange={(event) => setSearchValue(event.target.value)}
         />
+        <Select
+          value={statusFilter}
+          options={STATUS_OPTIONS.map((option) => ({
+            value: option.key,
+            label: `状态：${option.label}`,
+          }))}
+          className="shell-header-filter"
+          onChange={(value) => setStatusFilter(value)}
+        />
+        <Select
+          value={categoryFilter}
+          options={CATEGORY_OPTIONS.map((option) => ({
+            value: option.key,
+            label: `分类：${option.label}`,
+          }))}
+          className="shell-header-filter"
+          onChange={(value) => setCategoryFilter(value)}
+        />
       </div>
     ),
-    [filteredTemplates.length, searchValue],
+    [categoryFilter, searchValue, statusFilter],
   );
 
   useShellHeader(headerContent);
@@ -198,28 +217,6 @@ export function StorePage() {
             <StoreStatCard label="现有项目" value={String(projects.length)} helper="由模板派生的项目总数" />
             <StoreStatCard label="待安装模板" value={String(pendingTemplateCount)} helper="还没有项目实例" />
           </div>
-        </div>
-      </Card>
-
-      <Card className="glass-card store-toolbar-card" variant="borderless">
-        <div className="store-toolbar">
-          <div className="store-filter-stack">
-            <FilterChipGroup
-              label="状态"
-              options={STATUS_OPTIONS}
-              activeKey={statusFilter}
-              onChange={(value) => setStatusFilter(value as StoreStatusFilter)}
-            />
-            <FilterChipGroup
-              label="分类"
-              options={CATEGORY_OPTIONS}
-              activeKey={categoryFilter}
-              onChange={(value) => setCategoryFilter(value as StoreCategoryFilter)}
-            />
-          </div>
-          <Typography.Text type="secondary" className="store-toolbar-meta">
-            用状态和分类快速筛选结果。
-          </Typography.Text>
         </div>
       </Card>
 
@@ -389,35 +386,6 @@ function StoreStatCard({
         {value}
       </Typography.Title>
       <Typography.Text type="secondary">{helper}</Typography.Text>
-    </div>
-  );
-}
-
-function FilterChipGroup({
-  label,
-  options,
-  activeKey,
-  onChange,
-}: {
-  label: string;
-  options: Array<{ key: string; label: string }>;
-  activeKey: string;
-  onChange: (key: string) => void;
-}) {
-  return (
-    <div className="store-filter-group">
-      <Typography.Text className="store-filter-label">{label}</Typography.Text>
-      <div className="store-filter-list">
-        {options.map((option) => (
-          <Button
-            key={option.key}
-            type={activeKey === option.key ? "primary" : "default"}
-            onClick={() => onChange(option.key)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
     </div>
   );
 }
