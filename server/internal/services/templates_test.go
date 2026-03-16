@@ -92,6 +92,7 @@ func TestTemplateRenderSupportsRuntimeContext(t *testing.T) {
 		ComposeTemplate: `services:
   app:
     container_name: {{ .Runtime.OpenRestyContainer }}
+    network_mode: host
     volumes:
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
 `,
@@ -107,6 +108,9 @@ func TestTemplateRenderSupportsRuntimeContext(t *testing.T) {
 
 	if !strings.Contains(rendered, "container_name: camopanel-openresty") {
 		t.Fatalf("expected rendered compose to include container name, got %s", rendered)
+	}
+	if !strings.Contains(rendered, "network_mode: host") {
+		t.Fatalf("expected rendered compose to include host network mode, got %s", rendered)
 	}
 	if !strings.Contains(rendered, "/var/lib/camopanel/openresty/conf.d:/etc/nginx/conf.d") {
 		t.Fatalf("expected rendered compose to include conf dir bind, got %s", rendered)

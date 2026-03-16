@@ -1,5 +1,5 @@
 import { SendOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Input, Space, Typography, message } from "antd";
+import { Alert, Button, Card, Input, Space, message } from "antd";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../lib/api";
 import type { CopilotSession } from "../lib/types";
@@ -113,12 +113,7 @@ export function CopilotPage() {
 
   return (
     <div className="page-grid">
-      <div>
-        <Typography.Title className="page-title">Camo Copilot</Typography.Title>
-        <Typography.Paragraph className="page-subtitle">
-          Copilot 目前只提供只读分析，不直接执行写操作。
-        </Typography.Paragraph>
-      </div>
+      <Alert showIcon type="info" message="Copilot 目前只提供只读分析，不直接执行写操作。" />
 
       {sessionError ? <Alert type="error" message={sessionError} /> : null}
 

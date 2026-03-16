@@ -19,6 +19,7 @@ import {
   message,
 } from "antd";
 import { useEffect, useMemo, useState } from "react";
+import { useShellHeader } from "../components/ShellHeaderContext";
 import { apiRequest } from "../lib/api";
 import type { Project, TemplateParam, TemplateSpec } from "../lib/types";
 
@@ -127,6 +128,24 @@ export function StorePage() {
     });
   }, [categoryFilter, projectCountByTemplate, searchValue, statusFilter, templates]);
 
+  const headerContent = useMemo(
+    () => (
+      <div className="shell-header-store">
+        <Input
+          allowClear
+          value={searchValue}
+          prefix={<SearchOutlined />}
+          placeholder="搜索应用名、描述或分类"
+          className="shell-header-search"
+          onChange={(event) => setSearchValue(event.target.value)}
+        />
+      </div>
+    ),
+    [filteredTemplates.length, searchValue],
+  );
+
+  useShellHeader(headerContent);
+
   const deploy = async (values: Record<string, unknown>) => {
     if (!activeTemplate) return;
 
@@ -158,18 +177,15 @@ export function StorePage() {
     <div className="page-grid store-page">
       <Card className="glass-card store-hero-card" variant="borderless">
         <div className="store-hero-content">
-          <div className="store-hero-main">
-            <div>
-              <Typography.Title className="page-title">应用商店</Typography.Title>
-              <Typography.Paragraph className="page-subtitle">
-                这里展示受控应用模板，支持直接安装并在面板里查看运行状态。
-              </Typography.Paragraph>
-            </div>
+          <div className="store-overview-bar">
             <Space wrap size={[8, 8]}>
               <Tag>模板驱动安装</Tag>
               <Tag>直接执行</Tag>
               <Tag>{totalTemplates} 个可用模板</Tag>
             </Space>
+            <Typography.Text type="secondary">
+              已部署 {deployedTemplateCount} 个模板，当前共有 {projects.length} 个项目实例。
+            </Typography.Text>
           </div>
 
           <div className="store-stats-grid">
@@ -201,17 +217,9 @@ export function StorePage() {
               onChange={(value) => setCategoryFilter(value as StoreCategoryFilter)}
             />
           </div>
-
-          <div className="store-search-box">
-            <Input
-              allowClear
-              value={searchValue}
-              prefix={<SearchOutlined />}
-              placeholder="搜索应用名、描述或分类"
-              onChange={(event) => setSearchValue(event.target.value)}
-            />
-            <Typography.Text type="secondary">当前显示 {filteredTemplates.length} 个模板</Typography.Text>
-          </div>
+          <Typography.Text type="secondary" className="store-toolbar-meta">
+            用状态和分类快速筛选结果。
+          </Typography.Text>
         </div>
       </Card>
 

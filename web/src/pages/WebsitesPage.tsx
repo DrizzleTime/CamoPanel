@@ -72,18 +72,13 @@ export function WebsitesPage() {
 
   return (
     <div className="page-grid">
-      <div>
-        <Typography.Title className="page-title">OpenResty</Typography.Title>
-        <Typography.Paragraph className="page-subtitle">
-          操作固定 OpenResty 容器里的站点入口，支持静态站点和反向代理，创建后立即生效。
-        </Typography.Paragraph>
-        <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
-          如果固定 OpenResty 容器还没安装，可以先到应用商店安装 OpenResty 模板。
-        </Typography.Paragraph>
-      </div>
-
       <Card className="glass-card">
         <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Alert
+            showIcon
+            type="info"
+            message="如果固定 OpenResty 容器还没安装，可以先到应用商店安装 OpenResty 模板。"
+          />
           <div
             style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}
           >

@@ -2,14 +2,9 @@ id: openresty
 name: OpenResty
 version: "1.27.1.2-0"
 description: 固定 OpenResty 容器模板，部署后可直接供网站管理页复用。
-params:
-  - name: port
-    label: 对外端口
-    description: 固定 OpenResty 容器暴露到宿主机的 HTTP 端口
-    type: number
-    required: true
-    default: 80
+params: []
 health_hints:
   - 这是固定 OpenResty 容器模板，只支持部署一个实例。
   - 部署完成后，可直接到 OpenResty 页面创建静态站点和反向代理。
-  - 如果端口不是 80，访问站点时需要显式带上端口。
+  - 模板使用 host 网络模式，OpenResty 直接监听宿主机端口。
+  - 部署前请确认宿主机的 80 端口未被其他服务占用。

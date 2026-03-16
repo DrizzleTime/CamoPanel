@@ -15,12 +15,12 @@ import {
   Empty,
   Space,
   Table,
-  Tabs,
   Tag,
   Typography,
   message,
 } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useShellHeader } from "../components/ShellHeaderContext";
 import { apiRequest, bytesToSize } from "../lib/api";
 import type {
   DockerContainer,
@@ -53,6 +53,14 @@ const initialLoadingState: LoadingState = {
   networks: true,
   system: true,
 };
+
+const CONTAINER_TAB_LABELS = {
+  containers: "容器",
+  images: "镜像",
+  projects: "编排",
+  networks: "网络",
+  system: "系统设置",
+} as const;
 
 export function ContainersPage() {
   const [activeTab, setActiveTab] = useState("containers");
@@ -157,6 +165,33 @@ export function ContainersPage() {
   useEffect(() => {
     void loadAll();
   }, []);
+
+  const headerContent = useMemo(
+    () => (
+      <div className="shell-header-tabs">
+        {[
+          { key: "containers", label: `${CONTAINER_TAB_LABELS.containers} (${containers.length})` },
+          { key: "images", label: `${CONTAINER_TAB_LABELS.images} (${images.length})` },
+          { key: "projects", label: `${CONTAINER_TAB_LABELS.projects} (${projects.length})` },
+          { key: "networks", label: `${CONTAINER_TAB_LABELS.networks} (${networks.length})` },
+          { key: "system", label: CONTAINER_TAB_LABELS.system },
+        ].map((item) => (
+          <Button
+            key={item.key}
+            size="small"
+            type={activeTab === item.key ? "primary" : "text"}
+            className="shell-header-tab"
+            onClick={() => setActiveTab(item.key)}
+          >
+            {item.label}
+          </Button>
+        ))}
+      </div>
+    ),
+    [activeTab, containers.length, images.length, networks.length, projects.length],
+  );
+
+  useShellHeader(headerContent);
 
   const runProjectAction = async (project: Project, action: string) => {
     await apiRequest(`/api/projects/${project.id}/actions`, {
@@ -517,23 +552,20 @@ export function ContainersPage() {
     },
   ];
 
+  const activeTabContent = tabItems.find((item) => item.key === activeTab)?.children ?? null;
+
   return (
     <div className="page-grid">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-        <div>
-          <Typography.Title className="page-title">容器管理</Typography.Title>
-          <Typography.Paragraph className="page-subtitle">
-            一个页面看容器、镜像、编排、网络和 Docker 只读状态，并支持直接执行编排动作。
-          </Typography.Paragraph>
-        </div>
+      <div className="page-inline-bar">
+        <Typography.Text type="secondary">
+          在一个页面内查看容器、镜像、编排、网络和 Docker 系统状态。
+        </Typography.Text>
         <Button icon={<ReloadOutlined />} onClick={() => void loadAll()}>
           刷新
         </Button>
       </div>
 
-      <Card className="glass-card" styles={{ body: { paddingTop: 12 } }}>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-      </Card>
+      {activeTabContent}
 
       <Drawer
         open={!!activeContainer}

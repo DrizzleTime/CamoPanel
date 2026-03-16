@@ -223,7 +223,7 @@ func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
 	project, err := instance.createProject(context.Background(), "tester", createProjectRequest{
 		Name:       "anything",
 		TemplateID: managedOpenRestyTemplateID,
-		Parameters: map[string]any{"port": 8088},
+		Parameters: map[string]any{},
 	})
 	if err != nil {
 		t.Fatalf("create project: %v", err)
@@ -247,6 +247,9 @@ func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
 	if !strings.Contains(content, "container_name: camopanel-openresty") {
 		t.Fatalf("expected fixed container name, got %s", content)
 	}
+	if !strings.Contains(content, "network_mode: host") {
+		t.Fatalf("expected host network mode, got %s", content)
+	}
 	if !strings.Contains(content, confDir+":/etc/nginx/conf.d") {
 		t.Fatalf("expected nginx conf bind, got %s", content)
 	}
@@ -266,7 +269,7 @@ func TestManagedOpenRestyOnlyAllowsSingleDeployment(t *testing.T) {
 	_, err := instance.createProject(context.Background(), "tester", createProjectRequest{
 		Name:       managedOpenRestyProjectID,
 		TemplateID: managedOpenRestyTemplateID,
-		Parameters: map[string]any{"port": 80},
+		Parameters: map[string]any{},
 	})
 	if err != nil {
 		t.Fatalf("create first project: %v", err)
@@ -275,7 +278,7 @@ func TestManagedOpenRestyOnlyAllowsSingleDeployment(t *testing.T) {
 	_, err = instance.createProject(context.Background(), "tester", createProjectRequest{
 		Name:       "another-openresty",
 		TemplateID: managedOpenRestyTemplateID,
-		Parameters: map[string]any{"port": 8080},
+		Parameters: map[string]any{},
 	})
 	if err == nil {
 		t.Fatalf("expected duplicate managed openresty deployment to fail")
@@ -356,16 +359,12 @@ params:
 name: OpenResty
 version: "1"
 description: managed openresty
-params:
-  - name: port
-    type: number
-    required: true
+params: []
 `, `services:
   app:
     image: openresty/openresty:alpine
     container_name: {{ .Runtime.OpenRestyContainer }}
-    ports:
-      - "{{ .Values.port }}:80"
+    network_mode: host
     volumes:
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/openresty/conf.d"

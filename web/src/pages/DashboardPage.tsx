@@ -207,12 +207,9 @@ export function DashboardPage() {
           },
         }}
       >
-        <div>
-          <Typography.Title className="page-title">控制台概览</Typography.Title>
-          <Typography.Paragraph className="page-subtitle">
-            先看宿主机是否健康，再看项目和站点是否稳定，最后处理异常项。
-          </Typography.Paragraph>
-        </div>
+        <Typography.Text type="secondary">
+          先看宿主机是否健康，再看项目和站点是否稳定，最后处理异常项。
+        </Typography.Text>
         <Space wrap>
           <Tag color={streamTagColor}>{streamTag}</Tag>
         </Space>

@@ -58,6 +58,7 @@ env GOPROXY=https://goproxy.cn,direct go run ./cmd/camopanel
 
 创建站点前，面板会检查这个固定容器是否存在、是否运行中、挂载目录是否符合约定。  
 如果不满足条件，站点创建会直接失败，不会尝试自动修复容器。
+固定 OpenResty 模板使用 `host` 网络模式，默认直接监听宿主机端口。部署前请确认宿主机 `80` 端口未被其他服务占用。
 
 最小示例：
 
@@ -66,7 +67,7 @@ mkdir -p ./data/openresty/conf.d ./data/openresty/www
 
 docker run -d \
   --name camopanel-openresty \
-  -p 80:80 \
+  --network host \
   -v "$(pwd)/data/openresty/conf.d:/etc/nginx/conf.d" \
   -v "$(pwd)/data/openresty/conf.d:/etc/openresty/conf.d" \
   -v "$(pwd)/data/openresty/www:/var/www/openresty" \

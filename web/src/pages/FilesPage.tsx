@@ -260,13 +260,6 @@ export function FilesPage() {
 
   return (
     <div className="page-grid">
-      <div>
-        <Typography.Title className="page-title">文件管理</Typography.Title>
-        <Typography.Paragraph className="page-subtitle">
-          直接浏览和修改宿主机文件系统。支持任意绝对路径、在线编辑文本文件、上传和下载。
-        </Typography.Paragraph>
-      </div>
-
       <Card className="glass-card">
         <div className="files-toolbar">
           <Input.Search
