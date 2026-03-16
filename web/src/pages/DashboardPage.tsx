@@ -1,9 +1,7 @@
 import {
   CheckCircleOutlined,
-  ClockCircleOutlined,
   ExclamationCircleOutlined,
   GlobalOutlined,
-  ReloadOutlined,
   RocketOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
@@ -117,18 +115,15 @@ export function DashboardPage() {
   const summary = data?.metrics.summary ?? null;
   const history = data?.metrics.history ?? [];
   const projects = data?.projects ?? [];
-  const approvals = data?.approvals ?? [];
   const websites = data?.websites ?? [];
 
   const runningProjects = projects.filter((item) => item.runtime.status === "running").length;
   const stoppedProjects = projects.filter((item) => item.runtime.status === "stopped").length;
   const degradedProjects = projects.filter((item) => item.runtime.status === "degraded").length;
-  const pendingApprovals = approvals.filter((item) => item.status === "pending").length;
-  const failedApprovals = approvals.filter((item) => item.status === "failed").length;
   const attentionProjects = projects
     .filter((item) => item.runtime.status !== "running" || item.last_error)
     .slice(0, 5);
-  const recentApprovals = approvals.slice(0, 5);
+  const recentWebsites = websites.slice(0, 5);
 
   const cpuPercent = clamp(summary?.cpu_percent ?? 0);
   const memoryPercent = ratioToPercent(summary?.memory_used ?? 0, summary?.memory_total ?? 0);
@@ -215,7 +210,7 @@ export function DashboardPage() {
         <div>
           <Typography.Title className="page-title">控制台概览</Typography.Title>
           <Typography.Paragraph className="page-subtitle">
-            先看宿主机是否健康，再看项目是否稳定，最后处理审批与异常项。
+            先看宿主机是否健康，再看项目和站点是否稳定，最后处理异常项。
           </Typography.Paragraph>
         </div>
         <Space wrap>
@@ -247,10 +242,10 @@ export function DashboardPage() {
               helper="固定 OpenResty 容器"
             />
             <KpiCard
-              icon={<ClockCircleOutlined />}
-              label="待审批"
-              value={String(pendingApprovals)}
-              helper={`${failedApprovals} 个执行失败`}
+              icon={<WarningOutlined />}
+              label="异常项目"
+              value={String(attentionProjects.length)}
+              helper={`${degradedProjects} 个退化 / ${stoppedProjects} 个停止`}
             />
             <KpiCard
               icon={<CheckCircleOutlined />}
@@ -334,16 +329,16 @@ export function DashboardPage() {
               <Card className="glass-card" title="待处理" variant="borderless" style={surfaceStyle}>
                 <div className="dashboard-alert-list">
                   <StatusItem
-                    icon={<ClockCircleOutlined />}
-                    label="待审批请求"
-                    value={`${pendingApprovals} 条`}
-                    tone={pendingApprovals > 0 ? "warn" : "good"}
-                  />
-                  <StatusItem
                     icon={<WarningOutlined />}
                     label="异常项目"
                     value={`${attentionProjects.length} 个`}
                     tone={attentionProjects.length > 0 ? "danger" : "good"}
+                  />
+                  <StatusItem
+                    icon={<GlobalOutlined />}
+                    label="网站数量"
+                    value={`${websites.length} 个`}
+                    tone={websites.length > 0 ? "good" : "warn"}
                   />
                   <StatusItem
                     icon={<ExclamationCircleOutlined />}
@@ -364,7 +359,7 @@ export function DashboardPage() {
                     新建应用
                   </Button>
                   <Button onClick={() => navigate("/app/containers")}>容器管理</Button>
-                  <Button onClick={() => navigate("/app/approvals")}>处理审批</Button>
+                  <Button onClick={() => navigate("/app/websites")}>网站管理</Button>
                 </div>
               </Card>
 
@@ -407,10 +402,10 @@ export function DashboardPage() {
                 )}
               </Card>
 
-              <Card className="glass-card" title="最近审批" variant="borderless" style={surfaceStyle}>
-                {recentApprovals.length ? (
+              <Card className="glass-card" title="最近网站" variant="borderless" style={surfaceStyle}>
+                {recentWebsites.length ? (
                   <div style={{ display: "grid", gap: 4 }}>
-                    {recentApprovals.map((item, index) => (
+                    {recentWebsites.map((item, index) => (
                       <div
                         key={item.id}
                         style={{
@@ -420,13 +415,13 @@ export function DashboardPage() {
                           gap: 12,
                           padding: "12px 0",
                           borderBottom:
-                            index === recentApprovals.length - 1
+                            index === recentWebsites.length - 1
                               ? "none"
                               : `1px solid ${token.colorBorderSecondary}`,
                         }}
                       >
                         <div>
-                          <Typography.Text strong>{item.summary}</Typography.Text>
+                          <Typography.Text strong>{item.domain}</Typography.Text>
                           <Typography.Paragraph
                             style={{
                               margin: "4px 0 0",
@@ -434,15 +429,15 @@ export function DashboardPage() {
                               fontSize: 13,
                             }}
                           >
-                            {formatDateTime(item.created_at)}
+                            {item.name} / {item.type === "static" ? "静态站点" : "反向代理"}
                           </Typography.Paragraph>
                         </div>
-                        <Tag color={approvalStatusColor(item.status)}>{item.status}</Tag>
+                        <Tag>{item.status}</Tag>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无审批记录" />
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无站点记录" />
                 )}
               </Card>
             </div>
@@ -855,21 +850,6 @@ function toneBackground(token: ReturnType<typeof theme.useToken>["token"], tone:
       return token.colorWarningBg;
     default:
       return token.colorSuccessBg;
-  }
-}
-
-function approvalStatusColor(status: string) {
-  switch (status) {
-    case "approved":
-      return "green";
-    case "pending":
-      return "gold";
-    case "failed":
-      return "red";
-    case "rejected":
-      return "volcano";
-    default:
-      return "default";
   }
 }
 

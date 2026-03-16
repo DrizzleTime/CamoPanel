@@ -36,8 +36,11 @@ func New(cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Website{}, &model.ApprovalRequest{}, &model.AuditEvent{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Website{}, &model.AuditEvent{}); err != nil {
 		return nil, fmt.Errorf("migrate database: %w", err)
+	}
+	if err := cleanupLegacyApprovalData(db); err != nil {
+		return nil, fmt.Errorf("cleanup legacy approval data: %w", err)
 	}
 
 	auth := services.NewAuthService(cfg.SessionSecret)
@@ -100,9 +103,6 @@ func (a *App) router() *gin.Engine {
 		api.GET("/projects/:id", a.handleProject)
 		api.POST("/projects/:id/actions", a.handleProjectAction)
 		api.GET("/projects/:id/logs", a.handleProjectLogs)
-		api.GET("/approvals", a.handleApprovals)
-		api.POST("/approvals/:id/approve", a.handleApprove)
-		api.POST("/approvals/:id/reject", a.handleReject)
 		api.GET("/host/summary", a.handleHostSummary)
 		api.GET("/host/metrics", a.handleHostMetrics)
 		api.GET("/dashboard/stream", a.handleDashboardStream)

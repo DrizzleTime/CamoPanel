@@ -65,31 +65,3 @@ func chunkText(text string, size int) []string {
 func normalizeProjectName(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
-
-func chineseAction(action string) string {
-	switch action {
-	case model.ApprovalActionStart:
-		return "启动"
-	case model.ApprovalActionStop:
-		return "停止"
-	case model.ApprovalActionRestart:
-		return "重启"
-	case model.ApprovalActionDelete:
-		return "删除"
-	case model.ApprovalActionRedeploy:
-		return "重新部署"
-	default:
-		return action
-	}
-}
-
-func websiteTypeLabel(websiteType string) string {
-	switch websiteType {
-	case model.WebsiteTypeStatic:
-		return "静态站点"
-	case model.WebsiteTypeProxy:
-		return "反向代理"
-	default:
-		return websiteType
-	}
-}

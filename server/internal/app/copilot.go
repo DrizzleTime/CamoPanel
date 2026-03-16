@@ -37,19 +37,6 @@ func (a *App) handleCopilotMessage(c *gin.Context) {
 		return
 	}
 
-	if reply.ProposedAction != nil {
-		approval, approvalErr := a.createApprovalFromProposal(currentUser(c).ID, reply.ProposedAction)
-		if approvalErr != nil {
-			writeSSE(c, "error", gin.H{"error": approvalErr.Error()})
-		} else {
-			writeSSE(c, "action", gin.H{
-				"approval_id": approval.ID,
-				"summary":     approval.Summary,
-				"status":      approval.Status,
-			})
-		}
-	}
-
 	for _, chunk := range chunkText(reply.Message, 120) {
 		writeSSE(c, "chunk", gin.H{"content": chunk})
 	}

@@ -1,6 +1,5 @@
 import {
   AppstoreOutlined,
-  CheckCircleOutlined,
   CloudServerOutlined,
   ContainerOutlined,
   FolderOpenOutlined,
@@ -19,7 +18,6 @@ const items = [
   { key: "/app/websites", icon: <GlobalOutlined />, label: "网站管理" },
   { key: "/app/files", icon: <FolderOpenOutlined />, label: "文件管理" },
   { key: "/app/containers", icon: <ContainerOutlined />, label: "容器管理" },
-  { key: "/app/approvals", icon: <CheckCircleOutlined />, label: "审批" },
   { key: "/app/copilot", icon: <MessageOutlined />, label: "Copilot" },
 ];
 

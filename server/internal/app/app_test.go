@@ -111,30 +111,24 @@ func (f *fakeOpenResty) CreateWebsite(_ context.Context, spec services.WebsiteSp
 	}, nil
 }
 
-func TestDeployApprovalLifecycle(t *testing.T) {
+func TestCreateProjectLifecycle(t *testing.T) {
 	instance := newTestApp(t)
 	executor := &fakeExecutor{runtimeStatus: "running"}
 	instance.executor = executor
 
-	approval, err := instance.createDeployApproval("tester", "ui", createProjectRequest{
+	project, err := instance.createProject(context.Background(), "tester", createProjectRequest{
 		Name:       "demo-stack",
 		TemplateID: "demo",
 		Parameters: map[string]any{"port": 8080, "password": "secret"},
 	})
 	if err != nil {
-		t.Fatalf("create approval: %v", err)
-	}
-
-	approved, err := instance.approveRequest(context.Background(), approval.ID, "tester")
-	if err != nil {
-		t.Fatalf("approve request: %v", err)
-	}
-
-	if approved.Status != model.ApprovalStatusApproved {
-		t.Fatalf("expected approved status, got %s", approved.Status)
+		t.Fatalf("create project: %v", err)
 	}
 	if executor.deployCalls != 1 {
 		t.Fatalf("expected deploy call once, got %d", executor.deployCalls)
+	}
+	if project.Name != "demo-stack" {
+		t.Fatalf("expected project demo-stack, got %s", project.Name)
 	}
 
 	var count int64
@@ -146,75 +140,56 @@ func TestDeployApprovalLifecycle(t *testing.T) {
 	}
 }
 
-func TestAIProposalCreatesApproval(t *testing.T) {
+func TestRunProjectActionDeletesProject(t *testing.T) {
 	instance := newTestApp(t)
+	executor := &fakeExecutor{runtimeStatus: "running"}
+	instance.executor = executor
 
-	approval, err := instance.createApprovalFromProposal("tester", &services.ProposedAction{
-		Action:      model.ApprovalActionDeploy,
-		TemplateID:  "demo",
-		ProjectName: "from-ai",
-		Parameters: map[string]any{
-			"port":     8081,
-			"password": "secret",
-		},
-	})
-	if err != nil {
-		t.Fatalf("create approval from proposal: %v", err)
-	}
-
-	if approval.Source != "ai" {
-		t.Fatalf("expected source ai, got %s", approval.Source)
-	}
-	if approval.Status != model.ApprovalStatusPending {
-		t.Fatalf("expected pending status, got %s", approval.Status)
-	}
-}
-
-func TestRejectApproval(t *testing.T) {
-	instance := newTestApp(t)
-
-	approval, err := instance.createDeployApproval("tester", "ui", createProjectRequest{
-		Name:       "reject-me",
+	project, err := instance.createProject(context.Background(), "tester", createProjectRequest{
+		Name:       "delete-me",
 		TemplateID: "demo",
 		Parameters: map[string]any{"port": 8080, "password": "secret"},
 	})
 	if err != nil {
-		t.Fatalf("create approval: %v", err)
+		t.Fatalf("create project: %v", err)
 	}
 
-	rejected, err := instance.rejectRequest(approval.ID, "tester", "manual reject")
-	if err != nil {
-		t.Fatalf("reject request: %v", err)
+	if err := instance.runProjectAction(context.Background(), "tester", project, model.ActionDelete); err != nil {
+		t.Fatalf("run delete action: %v", err)
 	}
-	if rejected.Status != model.ApprovalStatusRejected {
-		t.Fatalf("expected rejected status, got %s", rejected.Status)
+
+	if executor.deleteCalls != 1 {
+		t.Fatalf("expected delete call once, got %d", executor.deleteCalls)
+	}
+
+	var count int64
+	if err := instance.db.Model(&model.Project{}).Count(&count).Error; err != nil {
+		t.Fatalf("count projects: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 projects, got %d", count)
 	}
 }
 
-func TestCreateWebsiteApprovalLifecycle(t *testing.T) {
+func TestCreateWebsiteLifecycle(t *testing.T) {
 	instance := newTestApp(t)
 	openresty := &fakeOpenResty{ready: true}
 	instance.openresty = openresty
 
-	approval, err := instance.createWebsiteApproval(context.Background(), "tester", "ui", createWebsiteRequest{
+	website, err := instance.createWebsite(context.Background(), "tester", createWebsiteRequest{
 		Name:      "demo-site",
 		Type:      model.WebsiteTypeProxy,
 		Domain:    "demo.local",
 		ProxyPass: "http://127.0.0.1:3000",
 	})
 	if err != nil {
-		t.Fatalf("create website approval: %v", err)
-	}
-
-	approved, err := instance.approveRequest(context.Background(), approval.ID, "tester")
-	if err != nil {
-		t.Fatalf("approve website request: %v", err)
-	}
-	if approved.Status != model.ApprovalStatusApproved {
-		t.Fatalf("expected approved status, got %s", approved.Status)
+		t.Fatalf("create website: %v", err)
 	}
 	if openresty.createCalls != 1 {
 		t.Fatalf("expected create website call once, got %d", openresty.createCalls)
+	}
+	if website.Domain != "demo.local" {
+		t.Fatalf("expected website domain demo.local, got %s", website.Domain)
 	}
 
 	var count int64
@@ -226,11 +201,11 @@ func TestCreateWebsiteApprovalLifecycle(t *testing.T) {
 	}
 }
 
-func TestCreateWebsiteApprovalRequiresOpenResty(t *testing.T) {
+func TestCreateWebsiteRequiresOpenResty(t *testing.T) {
 	instance := newTestApp(t)
 	instance.openresty = &fakeOpenResty{ready: false}
 
-	_, err := instance.createWebsiteApproval(context.Background(), "tester", "ui", createWebsiteRequest{
+	_, err := instance.createWebsite(context.Background(), "tester", createWebsiteRequest{
 		Name:   "demo-site",
 		Type:   model.WebsiteTypeStatic,
 		Domain: "demo.local",
@@ -245,25 +220,20 @@ func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
 	executor := &fakeExecutor{runtimeStatus: "running"}
 	instance.executor = executor
 
-	approval, err := instance.createDeployApproval("tester", "ui", createProjectRequest{
+	project, err := instance.createProject(context.Background(), "tester", createProjectRequest{
 		Name:       "anything",
 		TemplateID: managedOpenRestyTemplateID,
 		Parameters: map[string]any{"port": 8088},
 	})
 	if err != nil {
-		t.Fatalf("create approval: %v", err)
-	}
-
-	if approval.TargetID != managedOpenRestyProjectID {
-		t.Fatalf("expected target id %s, got %s", managedOpenRestyProjectID, approval.TargetID)
-	}
-
-	if _, err := instance.approveRequest(context.Background(), approval.ID, "tester"); err != nil {
-		t.Fatalf("approve request: %v", err)
+		t.Fatalf("create project: %v", err)
 	}
 
 	if executor.lastProject != managedOpenRestyProjectID {
 		t.Fatalf("expected fixed project name %s, got %s", managedOpenRestyProjectID, executor.lastProject)
+	}
+	if project.Name != managedOpenRestyProjectID {
+		t.Fatalf("expected project name %s, got %s", managedOpenRestyProjectID, project.Name)
 	}
 
 	rendered, err := os.ReadFile(executor.lastCompose)
@@ -293,26 +263,68 @@ func TestManagedOpenRestyOnlyAllowsSingleDeployment(t *testing.T) {
 	executor := &fakeExecutor{runtimeStatus: "running"}
 	instance.executor = executor
 
-	approval, err := instance.createDeployApproval("tester", "ui", createProjectRequest{
+	_, err := instance.createProject(context.Background(), "tester", createProjectRequest{
 		Name:       managedOpenRestyProjectID,
 		TemplateID: managedOpenRestyTemplateID,
 		Parameters: map[string]any{"port": 80},
 	})
 	if err != nil {
-		t.Fatalf("create first approval: %v", err)
+		t.Fatalf("create first project: %v", err)
 	}
 
-	if _, err := instance.approveRequest(context.Background(), approval.ID, "tester"); err != nil {
-		t.Fatalf("approve first request: %v", err)
-	}
-
-	_, err = instance.createDeployApproval("tester", "ui", createProjectRequest{
+	_, err = instance.createProject(context.Background(), "tester", createProjectRequest{
 		Name:       "another-openresty",
 		TemplateID: managedOpenRestyTemplateID,
 		Parameters: map[string]any{"port": 8080},
 	})
 	if err == nil {
 		t.Fatalf("expected duplicate managed openresty deployment to fail")
+	}
+}
+
+func TestCleanupLegacyApprovalData(t *testing.T) {
+	instance := newTestApp(t)
+
+	if err := instance.db.Exec("CREATE TABLE approval_requests (id TEXT PRIMARY KEY)").Error; err != nil {
+		t.Fatalf("create approval_requests table: %v", err)
+	}
+	if err := instance.db.Create(&model.AuditEvent{
+		ID:         "approval-event",
+		Action:     "approval_created",
+		TargetType: "project",
+		TargetID:   "demo",
+	}).Error; err != nil {
+		t.Fatalf("create approval audit event: %v", err)
+	}
+	if err := instance.db.Create(&model.AuditEvent{
+		ID:         "normal-event",
+		Action:     "login_success",
+		TargetType: "user",
+		TargetID:   "admin",
+	}).Error; err != nil {
+		t.Fatalf("create normal audit event: %v", err)
+	}
+
+	if err := cleanupLegacyApprovalData(instance.db); err != nil {
+		t.Fatalf("cleanup legacy approval data: %v", err)
+	}
+
+	if instance.db.Migrator().HasTable("approval_requests") {
+		t.Fatalf("expected approval_requests table to be dropped")
+	}
+
+	var count int64
+	if err := instance.db.Model(&model.AuditEvent{}).Where("action = ?", "approval_created").Count(&count).Error; err != nil {
+		t.Fatalf("count approval audit events: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 approval audit events, got %d", count)
+	}
+	if err := instance.db.Model(&model.AuditEvent{}).Where("action = ?", "login_success").Count(&count).Error; err != nil {
+		t.Fatalf("count remaining audit events: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 normal audit event, got %d", count)
 	}
 }
 

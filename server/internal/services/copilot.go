@@ -27,18 +27,8 @@ type CopilotSession struct {
 	Messages []SessionMessage `json:"messages"`
 }
 
-type ProposedAction struct {
-	Action      string         `json:"action"`
-	TemplateID  string         `json:"template_id,omitempty"`
-	ProjectID   string         `json:"project_id,omitempty"`
-	ProjectName string         `json:"project_name,omitempty"`
-	Summary     string         `json:"summary,omitempty"`
-	Parameters  map[string]any `json:"parameters,omitempty"`
-}
-
 type CopilotReply struct {
-	Message        string          `json:"message"`
-	ProposedAction *ProposedAction `json:"proposed_action,omitempty"`
+	Message string `json:"message"`
 }
 
 type ProjectToolData struct {
@@ -387,19 +377,7 @@ var toolSchemas = []chatTool{
 const systemPrompt = `你是 CamoPanel 的运维 Copilot。
 你只能做只读分析，不能直接执行写操作。
 你可以通过工具读取模板、项目、日志和主机信息。
-如果你认为应该让用户执行某个动作，必须返回 JSON，格式如下：
-{
-  "message": "给用户看的自然语言说明",
-  "proposed_action": {
-    "action": "deploy|start|stop|restart|delete|redeploy",
-    "template_id": "部署时需要",
-    "project_id": "操作已有项目时需要",
-    "project_name": "部署时建议使用的项目名",
-    "summary": "一段简短执行摘要",
-    "parameters": { "任意参数": "值" }
-  }
-}
-如果只是答疑或诊断，不需要 proposed_action，请返回：
+所有回复都必须返回 JSON，格式如下：
 {
   "message": "你的回答"
 }

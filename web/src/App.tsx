@@ -2,7 +2,6 @@ import { Spin } from "antd";
 import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ShellLayout } from "./components/ShellLayout";
-import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { ContainersPage } from "./pages/ContainersPage";
 import { CopilotPage } from "./pages/CopilotPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -21,7 +20,6 @@ function ProtectedRoutes() {
         <Route path="/app/websites" element={<WebsitesPage />} />
         <Route path="/app/files" element={<FilesPage />} />
         <Route path="/app/containers" element={<ContainersPage />} />
-        <Route path="/app/approvals" element={<ApprovalsPage />} />
         <Route path="/app/copilot" element={<CopilotPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app/dashboard" replace />} />

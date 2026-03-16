@@ -1,14 +1,14 @@
 # CamoPanel
 
 CamoPanel 是一个面向 Linux 单机的容器管理面板。  
-当前仓库实现的是 MVP：应用商店部署、统一审批链路、基础项目管理、OpenResty 容器管理、宿主机概览和只读 AI Copilot。
+当前仓库实现的是 MVP：应用商店部署、基础项目管理、OpenResty 容器管理、宿主机概览和只读 AI Copilot。
 
 ## 当前实现
 
 - `server`
-  - Go 控制面，负责鉴权、应用模板扫描、OpenResty 容器管理、审批、Docker 执行、主机信息和 Copilot API。
+  - Go 控制面，负责鉴权、应用模板扫描、OpenResty 容器管理、Docker 执行、主机信息和 Copilot API。
 - `web`
-  - React 19 + Bun SPA，负责登录、应用商店、OpenResty、项目管理、审批中心和 Copilot UI。
+  - React 19 + Bun SPA，负责登录、应用商店、OpenResty、项目管理和 Copilot UI。
 - `templates`
   - 本地应用模板仓库。MVP 内置 `openresty`、`postgres` 和 `wordpress`。
 
@@ -162,5 +162,5 @@ make test-server
 当前包含：
 
 - 模板校验与渲染单测
-- 审批流转与 AI 提案转审批单测
+- 项目部署、项目动作、站点创建和旧审批数据清理单测
 - Docker 集成测试骨架（`integration` build tag，需要本机可用 Docker）

@@ -33,7 +33,7 @@ export function LoginPage() {
           管理容器，不污染宿主机
         </Typography.Title>
         <Typography.Paragraph type="secondary">
-          首版只保留一名管理员账号，但审批、应用商店、AI 和执行链路已经按未来扩展方式搭好。
+          首版只保留一名管理员账号，聚焦应用部署、容器管理、网站管理和只读 AI 分析。
         </Typography.Paragraph>
         {error ? <Alert style={{ marginBottom: 16 }} type="error" message={error} /> : null}
         <Form layout="vertical" onFinish={onFinish} initialValues={{ username: "admin", password: "admin123" }}>

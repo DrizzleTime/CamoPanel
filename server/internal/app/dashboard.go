@@ -14,11 +14,10 @@ import (
 const dashboardStreamInterval = 1 * time.Second
 
 type dashboardSnapshot struct {
-	Metrics     services.HostMetrics    `json:"metrics"`
-	Projects    []projectResponse       `json:"projects"`
-	Approvals   []model.ApprovalRequest `json:"approvals"`
-	Websites    []model.Website         `json:"websites"`
-	GeneratedAt time.Time               `json:"generated_at"`
+	Metrics     services.HostMetrics `json:"metrics"`
+	Projects    []projectResponse    `json:"projects"`
+	Websites    []model.Website      `json:"websites"`
+	GeneratedAt time.Time            `json:"generated_at"`
 }
 
 func (a *App) handleHostSummary(c *gin.Context) {
@@ -80,11 +79,6 @@ func (a *App) dashboardSnapshot(ctx context.Context) (dashboardSnapshot, error) 
 		return dashboardSnapshot{}, err
 	}
 
-	approvals, err := a.listApprovals()
-	if err != nil {
-		return dashboardSnapshot{}, err
-	}
-
 	websites, err := a.listWebsites()
 	if err != nil {
 		return dashboardSnapshot{}, err
@@ -93,7 +87,6 @@ func (a *App) dashboardSnapshot(ctx context.Context) (dashboardSnapshot, error) 
 	return dashboardSnapshot{
 		Metrics:     metrics,
 		Projects:    projects,
-		Approvals:   approvals,
 		Websites:    websites,
 		GeneratedAt: time.Now().UTC(),
 	}, nil

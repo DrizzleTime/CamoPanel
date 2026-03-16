@@ -21,7 +21,7 @@ type createWebsiteRequest struct {
 	ProxyPass string `json:"proxy_pass"`
 }
 
-type createWebsiteApprovalPayload struct {
+type createWebsitePayload struct {
 	Name      string `json:"name"`
 	Type      string `json:"type"`
 	Domain    string `json:"domain"`
@@ -48,100 +48,110 @@ func (a *App) handleCreateWebsite(c *gin.Context) {
 		return
 	}
 
-	approval, err := a.createWebsiteApproval(c.Request.Context(), currentUser(c).ID, "ui", req)
+	website, err := a.createWebsite(c.Request.Context(), currentUser(c).ID, req)
 	if err != nil {
 		writeError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"approval": approval})
+	c.JSON(http.StatusCreated, gin.H{"website": website})
 }
 
-func (a *App) createWebsiteApproval(ctx context.Context, actorID, source string, req createWebsiteRequest) (model.ApprovalRequest, error) {
+func (a *App) createWebsite(ctx context.Context, actorID string, req createWebsiteRequest) (model.Website, error) {
+	payload, err := a.prepareWebsitePayload(ctx, req)
+	if err != nil {
+		return model.Website{}, err
+	}
+
+	website, err := a.executeCreateWebsite(ctx, payload)
+	if err != nil {
+		return model.Website{}, err
+	}
+
+	_ = a.recordAudit(actorID, "website_create", "website", website.ID, map[string]any{
+		"name":   website.Name,
+		"domain": website.Domain,
+		"type":   website.Type,
+	})
+	return website, nil
+}
+
+func (a *App) prepareWebsitePayload(ctx context.Context, req createWebsiteRequest) (createWebsitePayload, error) {
 	if err := a.openresty.EnsureReady(ctx); err != nil {
-		return model.ApprovalRequest{}, err
+		return createWebsitePayload{}, err
 	}
 
 	normalizedName := normalizeProjectName(req.Name)
 	if !projectNamePattern.MatchString(normalizedName) {
-		return model.ApprovalRequest{}, fmt.Errorf("网站名只能包含小写字母、数字、下划线和中划线")
+		return createWebsitePayload{}, fmt.Errorf("网站名只能包含小写字母、数字、下划线和中划线")
 	}
 
 	websiteType := strings.TrimSpace(req.Type)
 	switch websiteType {
 	case model.WebsiteTypeStatic, model.WebsiteTypeProxy:
 	default:
-		return model.ApprovalRequest{}, fmt.Errorf("不支持的网站类型")
+		return createWebsitePayload{}, fmt.Errorf("不支持的网站类型")
 	}
 
 	domain := strings.TrimSpace(req.Domain)
 	if domain == "" {
-		return model.ApprovalRequest{}, fmt.Errorf("域名不能为空")
+		return createWebsitePayload{}, fmt.Errorf("域名不能为空")
 	}
 
 	proxyPass := strings.TrimSpace(req.ProxyPass)
 	if websiteType == model.WebsiteTypeProxy && proxyPass == "" {
-		return model.ApprovalRequest{}, fmt.Errorf("代理地址不能为空")
+		return createWebsitePayload{}, fmt.Errorf("代理地址不能为空")
 	}
 	if websiteType == model.WebsiteTypeProxy {
 		target, err := url.Parse(proxyPass)
 		if err != nil || target.Scheme == "" || target.Host == "" {
-			return model.ApprovalRequest{}, fmt.Errorf("代理地址格式不正确")
+			return createWebsitePayload{}, fmt.Errorf("代理地址格式不正确")
 		}
 	}
 
 	var nameCount int64
 	if err := a.db.Model(&model.Website{}).Where("name = ?", normalizedName).Count(&nameCount).Error; err != nil {
-		return model.ApprovalRequest{}, err
+		return createWebsitePayload{}, err
 	}
 	if nameCount > 0 {
-		return model.ApprovalRequest{}, fmt.Errorf("网站名已存在")
+		return createWebsitePayload{}, fmt.Errorf("网站名已存在")
 	}
 
 	var domainCount int64
 	if err := a.db.Model(&model.Website{}).Where("domain = ?", domain).Count(&domainCount).Error; err != nil {
-		return model.ApprovalRequest{}, err
+		return createWebsitePayload{}, err
 	}
 	if domainCount > 0 {
-		return model.ApprovalRequest{}, fmt.Errorf("域名已存在")
+		return createWebsitePayload{}, fmt.Errorf("域名已存在")
 	}
 
-	payload := createWebsiteApprovalPayload{
+	return createWebsitePayload{
 		Name:      normalizedName,
 		Type:      websiteType,
 		Domain:    domain,
 		ProxyPass: proxyPass,
-	}
-	return a.saveApproval(
-		actorID,
-		source,
-		model.ApprovalActionCreateWebsite,
-		"website",
-		normalizedName,
-		payload,
-		fmt.Sprintf("创建网站 %s（%s）", domain, websiteTypeLabel(websiteType)),
-	)
+	}, nil
 }
 
-func (a *App) executeCreateWebsite(ctx context.Context, payload createWebsiteApprovalPayload) error {
+func (a *App) executeCreateWebsite(ctx context.Context, payload createWebsitePayload) (model.Website, error) {
 	if err := a.openresty.EnsureReady(ctx); err != nil {
-		return err
+		return model.Website{}, err
 	}
 
 	var nameCount int64
 	if err := a.db.Model(&model.Website{}).Where("name = ?", payload.Name).Count(&nameCount).Error; err != nil {
-		return err
+		return model.Website{}, err
 	}
 	if nameCount > 0 {
-		return fmt.Errorf("网站名已存在")
+		return model.Website{}, fmt.Errorf("网站名已存在")
 	}
 
 	var domainCount int64
 	if err := a.db.Model(&model.Website{}).Where("domain = ?", payload.Domain).Count(&domainCount).Error; err != nil {
-		return err
+		return model.Website{}, err
 	}
 	if domainCount > 0 {
-		return fmt.Errorf("域名已存在")
+		return model.Website{}, fmt.Errorf("域名已存在")
 	}
 
 	materialized, err := a.openresty.CreateWebsite(ctx, services.WebsiteSpec{
@@ -151,7 +161,7 @@ func (a *App) executeCreateWebsite(ctx context.Context, payload createWebsiteApp
 		ProxyPass: payload.ProxyPass,
 	})
 	if err != nil {
-		return err
+		return model.Website{}, err
 	}
 
 	website := model.Website{
@@ -164,7 +174,10 @@ func (a *App) executeCreateWebsite(ctx context.Context, payload createWebsiteApp
 		ConfigPath: materialized.ConfigPath,
 		Status:     "ready",
 	}
-	return a.db.Create(&website).Error
+	if err := a.db.Create(&website).Error; err != nil {
+		return model.Website{}, err
+	}
+	return website, nil
 }
 
 func (a *App) listWebsites() ([]model.Website, error) {

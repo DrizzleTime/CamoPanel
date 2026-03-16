@@ -49,23 +49,6 @@ export type Project = {
   updated_at: string;
 };
 
-export type Approval = {
-  id: string;
-  source: string;
-  action: string;
-  target_type: string;
-  target_id: string;
-  payload_json: string;
-  summary: string;
-  status: string;
-  created_by: string;
-  approved_by: string;
-  error_message: string;
-  executed_at?: string;
-  created_at: string;
-  updated_at: string;
-};
-
 export type HostSummary = {
   hostname: string;
   os: string;
@@ -107,7 +90,6 @@ export type HostMetrics = {
 export type DashboardSnapshot = {
   metrics: HostMetrics;
   projects: Project[];
-  approvals: Approval[];
   websites: Website[];
   generated_at: string;
 };

@@ -17,7 +17,7 @@ const (
 	managedOpenRestyProjectID  = "openresty"
 )
 
-type deployApprovalPayload struct {
+type deployPayload struct {
 	Name       string         `json:"name"`
 	TemplateID string         `json:"template_id"`
 	Parameters map[string]any `json:"parameters"`
@@ -28,107 +28,130 @@ type projectActionPayload struct {
 	Action    string `json:"action"`
 }
 
-func (a *App) createDeployApproval(actorID, source string, req createProjectRequest) (model.ApprovalRequest, error) {
+func (a *App) createProject(ctx context.Context, actorID string, req createProjectRequest) (model.Project, error) {
+	payload, err := a.prepareDeployPayload(req)
+	if err != nil {
+		return model.Project{}, err
+	}
+
+	project, err := a.executeDeploy(ctx, payload)
+	if err != nil {
+		return model.Project{}, err
+	}
+
+	_ = a.recordAudit(actorID, "project_deploy", "project", project.ID, map[string]any{
+		"name":        project.Name,
+		"template_id": project.TemplateID,
+	})
+	return project, nil
+}
+
+func (a *App) prepareDeployPayload(req createProjectRequest) (deployPayload, error) {
 	normalizedName := normalizeProjectName(req.Name)
 	if req.TemplateID == managedOpenRestyTemplateID {
 		normalizedName = managedOpenRestyProjectID
 	}
 	if !projectNamePattern.MatchString(normalizedName) {
-		return model.ApprovalRequest{}, fmt.Errorf("项目名只能包含小写字母、数字、下划线和中划线")
+		return deployPayload{}, fmt.Errorf("项目名只能包含小写字母、数字、下划线和中划线")
 	}
 
 	var count int64
 	if err := a.db.Model(&model.Project{}).Where("name = ?", normalizedName).Count(&count).Error; err != nil {
-		return model.ApprovalRequest{}, err
+		return deployPayload{}, err
 	}
 	if count > 0 {
-		return model.ApprovalRequest{}, fmt.Errorf("项目名已存在")
+		return deployPayload{}, fmt.Errorf("项目名已存在")
 	}
 	if req.TemplateID == managedOpenRestyTemplateID {
 		if err := a.ensureManagedOpenRestyAvailable(); err != nil {
-			return model.ApprovalRequest{}, err
+			return deployPayload{}, err
 		}
 	}
 
 	templateItem, err := a.templates.Get(req.TemplateID)
 	if err != nil {
-		return model.ApprovalRequest{}, err
+		return deployPayload{}, err
 	}
 
 	normalized, err := templateItem.ValidateAndNormalize(req.Parameters)
 	if err != nil {
-		return model.ApprovalRequest{}, err
+		return deployPayload{}, err
 	}
 	if _, err := templateItem.Render(normalized, a.templateRuntime(normalizedName)); err != nil {
-		return model.ApprovalRequest{}, err
+		return deployPayload{}, err
 	}
 
-	payload := deployApprovalPayload{
+	return deployPayload{
 		Name:       normalizedName,
 		TemplateID: templateItem.Spec.ID,
 		Parameters: normalized,
-	}
-	return a.saveApproval(actorID, source, model.ApprovalActionDeploy, "project", normalizedName, payload,
-		fmt.Sprintf("部署项目 %s（模板 %s）", normalizedName, templateItem.Spec.Name))
+	}, nil
 }
 
-func (a *App) createProjectActionApproval(actorID, source string, project model.Project, action string) (model.ApprovalRequest, error) {
+func (a *App) runProjectAction(ctx context.Context, actorID string, project model.Project, action string) error {
 	switch action {
-	case model.ApprovalActionStart, model.ApprovalActionStop, model.ApprovalActionRestart, model.ApprovalActionDelete, model.ApprovalActionRedeploy:
+	case model.ActionStart, model.ActionStop, model.ActionRestart, model.ActionDelete, model.ActionRedeploy:
 	default:
-		return model.ApprovalRequest{}, fmt.Errorf("不支持的动作: %s", action)
+		return fmt.Errorf("不支持的动作: %s", action)
 	}
 
 	payload := projectActionPayload{ProjectID: project.ID, Action: action}
-	summary := fmt.Sprintf("%s 项目 %s", chineseAction(action), project.Name)
-	return a.saveApproval(actorID, source, action, "project", project.ID, payload, summary)
-}
-
-func (a *App) executeDeploy(ctx context.Context, payload deployApprovalPayload) error {
-	var count int64
-	if err := a.db.Model(&model.Project{}).Where("name = ?", payload.Name).Count(&count).Error; err != nil {
+	if err := a.executeProjectAction(ctx, payload); err != nil {
 		return err
 	}
+
+	_ = a.recordAudit(actorID, "project_"+action, "project", project.ID, map[string]any{
+		"name":   project.Name,
+		"action": action,
+	})
+	return nil
+}
+
+func (a *App) executeDeploy(ctx context.Context, payload deployPayload) (model.Project, error) {
+	var count int64
+	if err := a.db.Model(&model.Project{}).Where("name = ?", payload.Name).Count(&count).Error; err != nil {
+		return model.Project{}, err
+	}
 	if count > 0 {
-		return fmt.Errorf("项目名已存在")
+		return model.Project{}, fmt.Errorf("项目名已存在")
 	}
 	if payload.TemplateID == managedOpenRestyTemplateID {
 		if err := a.ensureManagedOpenRestyAvailable(); err != nil {
-			return err
+			return model.Project{}, err
 		}
 	}
 
 	templateItem, err := a.templates.Get(payload.TemplateID)
 	if err != nil {
-		return err
+		return model.Project{}, err
 	}
 	normalized, err := templateItem.ValidateAndNormalize(payload.Parameters)
 	if err != nil {
-		return err
+		return model.Project{}, err
 	}
 	rendered, err := templateItem.Render(normalized, a.templateRuntime(payload.Name))
 	if err != nil {
-		return err
+		return model.Project{}, err
 	}
 
 	projectID := uuid.NewString()
 	projectDir := filepath.Join(a.cfg.ProjectsDir, projectID)
 	if err := os.MkdirAll(projectDir, 0o755); err != nil {
-		return err
+		return model.Project{}, err
 	}
 
 	composePath := filepath.Join(projectDir, "compose.yaml")
 	if err := os.WriteFile(composePath, []byte(rendered), 0o644); err != nil {
-		return err
+		return model.Project{}, err
 	}
 
 	if err := a.executor.Deploy(ctx, payload.Name, composePath); err != nil {
-		return err
+		return model.Project{}, err
 	}
 
 	configJSON, err := templateItem.ConfigJSON(normalized)
 	if err != nil {
-		return err
+		return model.Project{}, err
 	}
 
 	project := model.Project{
@@ -146,9 +169,9 @@ func (a *App) executeDeploy(ctx context.Context, payload deployApprovalPayload) 
 	}
 
 	if err := a.db.Create(&project).Error; err != nil {
-		return err
+		return model.Project{}, err
 	}
-	return nil
+	return project, nil
 }
 
 func (a *App) templateRuntime(projectName string) services.TemplateRuntime {
@@ -178,15 +201,15 @@ func (a *App) executeProjectAction(ctx context.Context, payload projectActionPay
 	}
 
 	switch payload.Action {
-	case model.ApprovalActionStart:
+	case model.ActionStart:
 		err = a.executor.Start(ctx, project.Name, project.ComposePath)
-	case model.ApprovalActionStop:
+	case model.ActionStop:
 		err = a.executor.Stop(ctx, project.Name, project.ComposePath)
-	case model.ApprovalActionRestart:
+	case model.ActionRestart:
 		err = a.executor.Restart(ctx, project.Name, project.ComposePath)
-	case model.ApprovalActionRedeploy:
+	case model.ActionRedeploy:
 		err = a.executor.Redeploy(ctx, project.Name, project.ComposePath)
-	case model.ApprovalActionDelete:
+	case model.ActionDelete:
 		err = a.executor.Delete(ctx, project.Name, project.ComposePath)
 	default:
 		err = fmt.Errorf("未知项目动作: %s", payload.Action)
@@ -197,14 +220,14 @@ func (a *App) executeProjectAction(ctx context.Context, payload projectActionPay
 		return err
 	}
 
-	if payload.Action == model.ApprovalActionDelete {
+	if payload.Action == model.ActionDelete {
 		_ = os.RemoveAll(filepath.Dir(project.ComposePath))
 		return a.db.Delete(&project).Error
 	}
 
 	project.LastError = ""
 	switch payload.Action {
-	case model.ApprovalActionStop:
+	case model.ActionStop:
 		project.Status = "stopped"
 	default:
 		project.Status = "running"

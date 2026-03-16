@@ -133,7 +133,7 @@ export function StorePage() {
     setSubmitting(true);
     try {
       const { projectName, ...parameters } = values;
-      await apiRequest<{ approval: { id: string } }>("/api/projects", {
+      await apiRequest<{ project: Project }>("/api/projects", {
         method: "POST",
         body: JSON.stringify({
           name: projectName,
@@ -141,7 +141,7 @@ export function StorePage() {
           parameters,
         }),
       });
-      message.success("已生成部署审批单");
+      message.success("部署完成");
       setActiveTemplate(null);
       form.resetFields();
       void loadStoreData();
@@ -162,12 +162,12 @@ export function StorePage() {
             <div>
               <Typography.Title className="page-title">应用商店</Typography.Title>
               <Typography.Paragraph className="page-subtitle">
-                这里展示受控应用模板。页面只负责模板浏览和发起部署，真正执行仍然走审批流。
+                这里展示受控应用模板，支持直接部署并在面板里查看运行状态。
               </Typography.Paragraph>
             </div>
             <Space wrap size={[8, 8]}>
               <Tag>模板驱动部署</Tag>
-              <Tag>审批后执行</Tag>
+              <Tag>直接执行</Tag>
               <Tag>{totalTemplates} 个可用模板</Tag>
             </Space>
           </div>
@@ -294,7 +294,7 @@ export function StorePage() {
       <Modal
         open={!!activeTemplate}
         title={activeTemplate ? `部署 ${activeTemplate.name}` : "部署应用"}
-        okText="生成审批单"
+        okText="立即部署"
         cancelText="取消"
         onCancel={() => setActiveTemplate(null)}
         onOk={() => void form.submit()}

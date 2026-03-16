@@ -158,12 +158,19 @@ export function ContainersPage() {
     void loadAll();
   }, []);
 
-  const queueProjectAction = async (project: Project, action: string) => {
-    await apiRequest<{ approval: { id: string } }>(`/api/projects/${project.id}/actions`, {
+  const runProjectAction = async (project: Project, action: string) => {
+    await apiRequest(`/api/projects/${project.id}/actions`, {
       method: "POST",
       body: JSON.stringify({ action }),
     });
-    message.success(`已生成${actionLabel(action)}审批单`);
+    message.success(`${actionLabel(action)}已执行`);
+    await Promise.allSettled([loadProjects(), loadContainers(), loadSystemInfo()]);
+    if (activeProject?.id === project.id && action !== "delete") {
+      await openProjectDetails(project);
+    }
+    if (action === "delete") {
+      setActiveProject(null);
+    }
   };
 
   const openContainerLogs = async (container: DockerContainer) => {
@@ -312,7 +319,7 @@ export function ContainersPage() {
           <Alert
             showIcon
             type="info"
-            message="编排动作沿用现有审批链，所有启动、停止、重启、删除和重新部署都会进入审批中心。"
+            message="这里可以直接执行项目的启动、停止、重启、删除和重新部署。"
           />
           <Card className="glass-card">
             <Table<Project>
@@ -342,26 +349,26 @@ export function ContainersPage() {
                       <Button
                         size="small"
                         icon={<PlayCircleOutlined />}
-                        onClick={() => void queueProjectAction(record, "start")}
+                        onClick={() => void runProjectAction(record, "start")}
                       />
                       <Button
                         size="small"
                         icon={<PauseCircleOutlined />}
-                        onClick={() => void queueProjectAction(record, "stop")}
+                        onClick={() => void runProjectAction(record, "stop")}
                       />
                       <Button
                         size="small"
                         icon={<SyncOutlined />}
-                        onClick={() => void queueProjectAction(record, "restart")}
+                        onClick={() => void runProjectAction(record, "restart")}
                       />
-                      <Button size="small" onClick={() => void queueProjectAction(record, "redeploy")}>
+                      <Button size="small" onClick={() => void runProjectAction(record, "redeploy")}>
                         重新部署
                       </Button>
                       <Button
                         danger
                         size="small"
                         icon={<DeleteOutlined />}
-                        onClick={() => void queueProjectAction(record, "delete")}
+                        onClick={() => void runProjectAction(record, "delete")}
                       />
                     </Space>
                   ),
@@ -516,7 +523,7 @@ export function ContainersPage() {
         <div>
           <Typography.Title className="page-title">容器管理</Typography.Title>
           <Typography.Paragraph className="page-subtitle">
-            一个页面看容器、镜像、编排、网络和 Docker 只读状态。编排动作继续走审批，系统设置当前只读。
+            一个页面看容器、镜像、编排、网络和 Docker 只读状态，并支持直接执行编排动作。
           </Typography.Paragraph>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void loadAll()}>

@@ -52,7 +52,7 @@ export function WebsitesPage() {
   const createWebsite = async (values: Record<string, string>) => {
     setSubmitting(true);
     try {
-      await apiRequest<{ approval: { id: string } }>("/api/websites", {
+      await apiRequest<{ website: Website }>("/api/websites", {
         method: "POST",
         body: JSON.stringify({
           name: values.name,
@@ -61,9 +61,10 @@ export function WebsitesPage() {
           proxy_pass: values.proxy_pass ?? "",
         }),
       });
-      message.success("已生成 OpenResty 站点创建审批单");
+      message.success("站点创建完成");
       setModalOpen(false);
       form.resetFields();
+      void loadData();
     } finally {
       setSubmitting(false);
     }
@@ -74,7 +75,7 @@ export function WebsitesPage() {
       <div>
         <Typography.Title className="page-title">OpenResty</Typography.Title>
         <Typography.Paragraph className="page-subtitle">
-          操作固定 OpenResty 容器里的站点入口，支持静态站点和反向代理，所有写操作仍然走审批。
+          操作固定 OpenResty 容器里的站点入口，支持静态站点和反向代理，创建后立即生效。
         </Typography.Paragraph>
         <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
           如果固定 OpenResty 容器还没部署，可以先到应用商店部署 OpenResty 模板。
@@ -184,7 +185,7 @@ export function WebsitesPage() {
       <Modal
         open={modalOpen}
         title="创建站点"
-        okText="生成审批单"
+        okText="立即创建"
         cancelText="取消"
         onCancel={() => {
           setModalOpen(false);

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"camopanel/server/internal/model"
 	"camopanel/server/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -35,13 +36,18 @@ func (a *App) handleCreateProject(c *gin.Context) {
 		return
 	}
 
-	approval, err := a.createDeployApproval(currentUser(c).ID, "ui", req)
+	project, err := a.createProject(c.Request.Context(), currentUser(c).ID, req)
 	if err != nil {
 		writeError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"approval": approval})
+	item, err := a.projectToResponse(c.Request.Context(), project)
+	if err != nil {
+		writeError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"project": item})
 }
 
 func (a *App) handleProject(c *gin.Context) {
@@ -72,13 +78,27 @@ func (a *App) handleProjectAction(c *gin.Context) {
 		return
 	}
 
-	approval, err := a.createProjectActionApproval(currentUser(c).ID, "ui", project, req.Action)
-	if err != nil {
+	if err := a.runProjectAction(c.Request.Context(), currentUser(c).ID, project, req.Action); err != nil {
 		writeError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"approval": approval})
+	if req.Action == model.ActionDelete {
+		c.JSON(http.StatusOK, gin.H{"deleted": true})
+		return
+	}
+
+	updated, err := a.findProject(project.ID)
+	if err != nil {
+		writeError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	item, err := a.projectToResponse(c.Request.Context(), updated)
+	if err != nil {
+		writeError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"project": item})
 }
 
 func (a *App) handleProjectLogs(c *gin.Context) {

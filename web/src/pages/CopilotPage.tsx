@@ -17,7 +17,7 @@ export function CopilotPage() {
       id: crypto.randomUUID(),
       role: "assistant",
       content:
-        "我可以帮你推荐应用、解释参数、读取项目日志和主机资源，并在需要时生成审批单。",
+        "我可以帮你推荐应用、解释参数、读取项目日志和主机资源。",
     },
   ]);
   const [input, setInput] = useState("");
@@ -93,9 +93,6 @@ export function CopilotPage() {
               ),
             );
           }
-          if (event === "action") {
-            message.success(`AI 已生成审批单：${payload.summary}`);
-          }
           if (event === "error") {
             message.error(payload.error || "Copilot 出错");
           }
@@ -119,7 +116,7 @@ export function CopilotPage() {
       <div>
         <Typography.Title className="page-title">Camo Copilot</Typography.Title>
         <Typography.Paragraph className="page-subtitle">
-          Copilot 只做读操作和提案，不直接执行写入。所有动作都会被转成审批单。
+          Copilot 目前只提供只读分析，不直接执行写操作。
         </Typography.Paragraph>
       </div>
 

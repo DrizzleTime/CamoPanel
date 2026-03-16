@@ -5,19 +5,11 @@ import "time"
 const (
 	RoleSuperAdmin = "super_admin"
 
-	ApprovalStatusPending   = "pending"
-	ApprovalStatusExecuting = "executing"
-	ApprovalStatusApproved  = "approved"
-	ApprovalStatusRejected  = "rejected"
-	ApprovalStatusFailed    = "failed"
-
-	ApprovalActionDeploy        = "deploy"
-	ApprovalActionStart         = "start"
-	ApprovalActionStop          = "stop"
-	ApprovalActionRestart       = "restart"
-	ApprovalActionDelete        = "delete"
-	ApprovalActionRedeploy      = "redeploy"
-	ApprovalActionCreateWebsite = "create_website"
+	ActionStart    = "start"
+	ActionStop     = "stop"
+	ActionRestart  = "restart"
+	ActionDelete   = "delete"
+	ActionRedeploy = "redeploy"
 
 	WebsiteTypeStatic = "static"
 	WebsiteTypeProxy  = "proxy"
@@ -56,23 +48,6 @@ type Website struct {
 	Status     string    `gorm:"not null" json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
-}
-
-type ApprovalRequest struct {
-	ID           string     `gorm:"primaryKey" json:"id"`
-	Source       string     `gorm:"not null" json:"source"`
-	Action       string     `gorm:"not null" json:"action"`
-	TargetType   string     `gorm:"not null" json:"target_type"`
-	TargetID     string     `gorm:"not null" json:"target_id"`
-	PayloadJSON  string     `gorm:"type:text;not null" json:"payload_json"`
-	Summary      string     `gorm:"type:text;not null" json:"summary"`
-	Status       string     `gorm:"not null" json:"status"`
-	CreatedBy    string     `gorm:"not null" json:"created_by"`
-	ApprovedBy   string     `json:"approved_by"`
-	ErrorMessage string     `gorm:"type:text" json:"error_message"`
-	ExecutedAt   *time.Time `json:"executed_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type AuditEvent struct {
