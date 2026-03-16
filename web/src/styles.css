@@ -53,6 +53,14 @@ body {
   z-index: 10;
 }
 
+.shell-user-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding-inline: 10px;
+}
+
 .shell-content {
   min-height: 0;
   padding: 24px 28px 28px;

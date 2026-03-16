@@ -78,7 +78,7 @@ export function WebsitesPage() {
           操作固定 OpenResty 容器里的站点入口，支持静态站点和反向代理，创建后立即生效。
         </Typography.Paragraph>
         <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
-          如果固定 OpenResty 容器还没部署，可以先到应用商店部署 OpenResty 模板。
+          如果固定 OpenResty 容器还没安装，可以先到应用商店安装 OpenResty 模板。
         </Typography.Paragraph>
       </div>
 

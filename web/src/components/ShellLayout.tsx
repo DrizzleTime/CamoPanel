@@ -2,13 +2,14 @@ import {
   AppstoreOutlined,
   CloudServerOutlined,
   ContainerOutlined,
+  DownOutlined,
   FolderOpenOutlined,
   GlobalOutlined,
   LogoutOutlined,
   MessageOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Avatar, Button, Layout, Menu, Space, Typography, theme } from "antd";
+import { Avatar, Button, Dropdown, Layout, Menu, Space, Typography, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 
@@ -27,6 +28,20 @@ export function ShellLayout() {
   const { user, logout } = useAuthStore();
   const { token } = theme.useToken();
   const currentItem = items.find((item) => location.pathname.startsWith(item.key));
+  const userMenu = {
+    items: [
+      {
+        key: "logout",
+        icon: <LogoutOutlined />,
+        label: "退出",
+      },
+    ],
+    onClick: ({ key }: { key: string }) => {
+      if (key === "logout") {
+        void logout();
+      }
+    },
+  };
 
   return (
     <Layout className="shell-layout" style={{ background: token.colorBgLayout }}>
@@ -70,19 +85,17 @@ export function ShellLayout() {
           <Space size={12} style={{ minWidth: 0 }}>
             <Typography.Text type="secondary">控制台</Typography.Text>
           </Space>
-          <Space size="middle">
-            <Button type="text">
+          <Dropdown menu={userMenu} trigger={["click"]} placement="bottomRight">
+            <Button type="text" className="shell-user-trigger">
               <Avatar
                 size={28}
                 icon={<UserOutlined />}
                 style={{ background: token.colorBgContainer, color: token.colorText }}
               />
               <Typography.Text>{user?.username}</Typography.Text>
+              <DownOutlined style={{ fontSize: 12, color: token.colorTextTertiary }} />
             </Button>
-            <Button type="text" icon={<LogoutOutlined />} onClick={() => logout()}>
-              退出
-            </Button>
-          </Space>
+          </Dropdown>
         </Layout.Header>
         <Layout.Content className="shell-content">
           <Outlet />

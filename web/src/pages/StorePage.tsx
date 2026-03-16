@@ -7,11 +7,11 @@ import {
 import {
   Button,
   Card,
+  Drawer,
   Empty,
   Form,
   Input,
   InputNumber,
-  Modal,
   Space,
   Switch,
   Tag,
@@ -30,8 +30,8 @@ const MANAGED_OPENRESTY_PROJECT_NAME = "openresty";
 
 const STATUS_OPTIONS: Array<{ key: StoreStatusFilter; label: string }> = [
   { key: "all", label: "全部" },
-  { key: "deployed", label: "已部署" },
-  { key: "available", label: "未部署" },
+  { key: "deployed", label: "已安装" },
+  { key: "available", label: "未安装" },
 ];
 
 const CATEGORY_OPTIONS: Array<{ key: StoreCategoryFilter; label: string }> = [
@@ -141,7 +141,7 @@ export function StorePage() {
           parameters,
         }),
       });
-      message.success("部署完成");
+      message.success("安装完成");
       setActiveTemplate(null);
       form.resetFields();
       void loadStoreData();
@@ -162,25 +162,25 @@ export function StorePage() {
             <div>
               <Typography.Title className="page-title">应用商店</Typography.Title>
               <Typography.Paragraph className="page-subtitle">
-                这里展示受控应用模板，支持直接部署并在面板里查看运行状态。
+                这里展示受控应用模板，支持直接安装并在面板里查看运行状态。
               </Typography.Paragraph>
             </div>
             <Space wrap size={[8, 8]}>
-              <Tag>模板驱动部署</Tag>
+              <Tag>模板驱动安装</Tag>
               <Tag>直接执行</Tag>
               <Tag>{totalTemplates} 个可用模板</Tag>
             </Space>
           </div>
 
           <div className="store-stats-grid">
-            <StoreStatCard label="模板总数" value={String(totalTemplates)} helper="当前可直接发起部署" />
+            <StoreStatCard label="模板总数" value={String(totalTemplates)} helper="当前可直接安装" />
             <StoreStatCard
-              label="已部署模板"
+              label="已安装模板"
               value={String(deployedTemplateCount)}
               helper="至少已有一个项目实例"
             />
             <StoreStatCard label="现有项目" value={String(projects.length)} helper="由模板派生的项目总数" />
-            <StoreStatCard label="待部署模板" value={String(pendingTemplateCount)} helper="还没有项目实例" />
+            <StoreStatCard label="待安装模板" value={String(pendingTemplateCount)} helper="还没有项目实例" />
           </div>
         </div>
       </Card>
@@ -250,11 +250,11 @@ export function StorePage() {
                   <div className="store-app-meta">
                     <Tag color="blue">{categoryLabel}</Tag>
                     <Tag>{item.params.length} 个配置项</Tag>
-                    {isDeployed ? <Tag color="green">已部署</Tag> : <Tag>未部署</Tag>}
+                    {isDeployed ? <Tag color="green">已安装</Tag> : <Tag>未安装</Tag>}
                   </div>
 
                   <Typography.Text className="store-app-hint" type="secondary">
-                    {item.health_hints[0] || "部署后可在项目页查看容器状态和运行日志。"}
+                    {item.health_hints[0] || "安装后可在项目页查看容器状态和运行日志。"}
                   </Typography.Text>
 
                   <div className="store-app-footer">
@@ -267,7 +267,7 @@ export function StorePage() {
                       </Typography.Text>
                     </div>
                     <Button type="primary" onClick={() => setActiveTemplate(item)}>
-                      发起部署
+                      安装
                     </Button>
                   </div>
                 </div>
@@ -291,15 +291,20 @@ export function StorePage() {
         </Card>
       )}
 
-      <Modal
+      <Drawer
         open={!!activeTemplate}
-        title={activeTemplate ? `部署 ${activeTemplate.name}` : "部署应用"}
-        okText="立即部署"
-        cancelText="取消"
-        onCancel={() => setActiveTemplate(null)}
-        onOk={() => void form.submit()}
-        confirmLoading={submitting}
-        destroyOnClose
+        title={activeTemplate ? `安装 ${activeTemplate.name}` : "安装应用"}
+        width={520}
+        onClose={() => setActiveTemplate(null)}
+        destroyOnHidden
+        extra={
+          <Space>
+            <Button onClick={() => setActiveTemplate(null)}>取消</Button>
+            <Button type="primary" loading={submitting} onClick={() => void form.submit()}>
+              立即安装
+            </Button>
+          </Space>
+        }
       >
         {activeTemplate ? (
           <Form form={form} layout="vertical" onFinish={deploy} initialValues={initialValues}>
@@ -307,7 +312,7 @@ export function StorePage() {
               label="项目名"
               name="projectName"
               rules={[{ required: true, message: "请输入项目名" }]}
-              extra={projectNameLocked ? "固定 OpenResty 项目，部署后会直接供网站管理页复用。" : undefined}
+              extra={projectNameLocked ? "固定 OpenResty 项目，安装后会直接供网站管理页复用。" : undefined}
             >
               <Input
                 placeholder={projectNameLocked ? MANAGED_OPENRESTY_PROJECT_NAME : `${activeTemplate.id}-demo`}
@@ -319,7 +324,7 @@ export function StorePage() {
             ))}
           </Form>
         ) : null}
-      </Modal>
+      </Drawer>
     </div>
   );
 }
