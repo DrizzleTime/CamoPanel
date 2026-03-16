@@ -81,6 +81,17 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             defaultBg: "#f5f5f5",
             defaultColor: "#141414",
           },
+          Select: {
+            selectorBg: "#ffffff",
+            clearBg: "#ffffff",
+            optionActiveBg: "#f7f7f5",
+            optionSelectedBg: "#f1f1ef",
+            optionSelectedColor: "#141414",
+            optionSelectedFontWeight: 600,
+            hoverBorderColor: "#434343",
+            activeBorderColor: "#595959",
+            activeOutlineColor: "rgba(20, 20, 20, 0.12)",
+          },
         },
       }}
     >

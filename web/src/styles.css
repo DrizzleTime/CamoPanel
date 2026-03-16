@@ -142,6 +142,53 @@ body {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
 }
 
+.ant-alert {
+  border-radius: 18px;
+}
+
+.ant-alert,
+.ant-alert .ant-alert-message,
+.ant-alert .ant-alert-description,
+.ant-alert .ant-typography {
+  color: #141414;
+}
+
+.ant-alert-info {
+  background: #f3f5f7;
+  border-color: #d7dde3;
+}
+
+.ant-alert-info .ant-alert-icon {
+  color: #365066;
+}
+
+.ant-alert-success {
+  background: #f3f7f3;
+  border-color: #d6e3d8;
+}
+
+.ant-alert-success .ant-alert-icon {
+  color: #2f6b45;
+}
+
+.ant-alert-warning {
+  background: #faf6ed;
+  border-color: #ead8b2;
+}
+
+.ant-alert-warning .ant-alert-icon {
+  color: #8a5a18;
+}
+
+.ant-alert-error {
+  background: #fbf1f1;
+  border-color: #ebd0d0;
+}
+
+.ant-alert-error .ant-alert-icon {
+  color: #9f3a38;
+}
+
 .page-title {
   margin: 0;
   font-size: 24px;
