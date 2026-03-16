@@ -1,0 +1,31 @@
+id: redis
+name: Redis
+version: "7.2"
+description: 轻量的 Redis 单实例模板，适合缓存和轻量消息场景。
+params:
+  - name: port
+    label: 对外端口
+    description: 暴露给宿主机的 Redis 端口
+    type: number
+    required: true
+    default: 6379
+  - name: password
+    label: 访问密码
+    description: Redis requirepass 密码
+    type: secret
+    required: true
+  - name: databases
+    label: 逻辑库数量
+    description: Redis 逻辑库数量
+    type: number
+    required: true
+    default: 16
+  - name: appendonly
+    label: 开启 AOF
+    description: 是否开启 appendonly 持久化
+    type: boolean
+    required: true
+    default: true
+health_hints:
+  - Redis 默认使用逻辑库编号，不支持动态创建关系型数据库。
+  - 如果需要持久化，建议保留 AOF 并关注磁盘空间。

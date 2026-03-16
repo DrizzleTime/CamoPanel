@@ -1,0 +1,19 @@
+services:
+  redis:
+    image: redis:7.2
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - "{{ .Values.password }}"
+      - --databases
+      - "{{ .Values.databases }}"
+      - --appendonly
+      - "{{ if .Values.appendonly }}yes{{ else }}no{{ end }}"
+    ports:
+      - "{{ .Values.port }}:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

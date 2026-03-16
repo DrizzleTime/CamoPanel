@@ -15,15 +15,16 @@ import (
 )
 
 type App struct {
-	cfg       config.Config
-	db        *gorm.DB
-	auth      *services.AuthService
-	templates *services.TemplateCatalog
-	executor  services.Executor
-	docker    services.DockerReader
-	host      *services.HostService
-	openresty services.OpenRestyManager
-	copilot   *services.CopilotService
+	cfg        config.Config
+	db         *gorm.DB
+	auth       *services.AuthService
+	templates  *services.TemplateCatalog
+	executor   services.Executor
+	docker     services.DockerReader
+	containers services.ContainerOperator
+	host       *services.HostService
+	openresty  services.OpenRestyManager
+	copilot    *services.CopilotService
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -56,14 +57,15 @@ func New(cfg config.Config) (*App, error) {
 	dockerService := services.NewDockerService()
 
 	instance := &App{
-		cfg:       cfg,
-		db:        db,
-		auth:      auth,
-		templates: catalog,
-		executor:  dockerService,
-		docker:    dockerService,
-		host:      services.NewHostService(cfg.DataDir),
-		openresty: services.NewOpenRestyService(dockerService, cfg.OpenRestyContainer, cfg.OpenRestyDataDir),
+		cfg:        cfg,
+		db:         db,
+		auth:       auth,
+		templates:  catalog,
+		executor:   dockerService,
+		docker:     dockerService,
+		containers: dockerService,
+		host:       services.NewHostService(cfg.DataDir),
+		openresty:  services.NewOpenRestyService(dockerService, cfg.OpenRestyContainer, cfg.OpenRestyDataDir),
 	}
 	instance.copilot = services.NewCopilotService(cfg.AI, instance)
 
@@ -103,6 +105,13 @@ func (a *App) router() *gin.Engine {
 		api.GET("/projects/:id", a.handleProject)
 		api.POST("/projects/:id/actions", a.handleProjectAction)
 		api.GET("/projects/:id/logs", a.handleProjectLogs)
+		api.GET("/databases", a.handleDatabaseInstances)
+		api.GET("/databases/:id/overview", a.handleDatabaseOverview)
+		api.POST("/databases/:id/databases", a.handleCreateManagedDatabase)
+		api.POST("/databases/:id/accounts", a.handleCreateDatabaseAccount)
+		api.POST("/databases/:id/accounts/:account/password", a.handleUpdateDatabaseAccountPassword)
+		api.POST("/databases/:id/grants", a.handleGrantDatabaseAccount)
+		api.POST("/databases/:id/redis/config", a.handleUpdateRedisConfig)
 		api.GET("/host/summary", a.handleHostSummary)
 		api.GET("/host/metrics", a.handleHostMetrics)
 		api.GET("/dashboard/stream", a.handleDashboardStream)

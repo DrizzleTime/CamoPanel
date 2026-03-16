@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ShellLayout } from "./components/ShellLayout";
 import { ContainersPage } from "./pages/ContainersPage";
 import { CopilotPage } from "./pages/CopilotPage";
+import { DatabasesPage } from "./pages/DatabasesPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { FilesPage } from "./pages/FilesPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -18,6 +19,7 @@ function ProtectedRoutes() {
         <Route path="/app/dashboard" element={<DashboardPage />} />
         <Route path="/app/store" element={<StorePage />} />
         <Route path="/app/websites" element={<WebsitesPage />} />
+        <Route path="/app/databases" element={<DatabasesPage />} />
         <Route path="/app/files" element={<FilesPage />} />
         <Route path="/app/containers" element={<ContainersPage />} />
         <Route path="/app/copilot" element={<CopilotPage />} />

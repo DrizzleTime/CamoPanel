@@ -2,6 +2,7 @@ import {
   AppstoreOutlined,
   CloudServerOutlined,
   ContainerOutlined,
+  DatabaseOutlined,
   DownOutlined,
   FolderOpenOutlined,
   GlobalOutlined,
@@ -36,6 +37,13 @@ const items = [
     label: "网站管理",
     headerTitle: "网站管理",
     headerDescription: "管理固定 OpenResty 容器里的站点入口。",
+  },
+  {
+    key: "/app/databases",
+    icon: <DatabaseOutlined />,
+    label: "数据库",
+    headerTitle: "数据库管理",
+    headerDescription: "统一管理 MySQL、PostgreSQL 和 Redis。",
   },
   {
     key: "/app/files",

@@ -44,8 +44,10 @@ const CATEGORY_OPTIONS: Array<{ key: StoreCategoryFilter; label: string }> = [
 ];
 
 const TEMPLATE_CATEGORY_MAP: Record<string, Exclude<StoreCategoryFilter, "all">> = {
+  mysql: "database",
   openresty: "site",
   postgres: "database",
+  redis: "database",
   wordpress: "site",
 };
 

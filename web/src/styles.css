@@ -439,6 +439,112 @@ body {
   padding: 36px 24px;
 }
 
+.database-page {
+  gap: 20px;
+}
+
+.database-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.database-sidebar,
+.database-main {
+  display: grid;
+  gap: 20px;
+}
+
+.database-instance-list {
+  display: grid;
+  gap: 12px;
+}
+
+.database-instance-card {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #ececec;
+  background: #fafafa;
+  color: #141414;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.database-instance-card:hover {
+  border-color: #bfbfbf;
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.database-instance-card.active {
+  border-color: #141414;
+  background: #ffffff;
+}
+
+.database-instance-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.database-instance-error {
+  display: block;
+  font-size: 12px;
+}
+
+.database-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.database-descriptions .ant-descriptions-view {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.database-summary-card .ant-card-body {
+  padding: 20px;
+}
+
+.database-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.database-summary-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.database-summary-kpi {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #fafafa;
+  border: 1px solid #ececec;
+}
+
+.database-redis-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .containers-tab-stack {
   display: grid;
   gap: 16px;
@@ -503,12 +609,18 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .database-layout,
+  .database-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
   .containers-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .store-stats-grid,
-  .store-app-grid {
+  .store-app-grid,
+  .database-redis-config-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -554,7 +666,8 @@ body {
   }
 
   .store-stats-grid,
-  .store-app-grid {
+  .store-app-grid,
+  .database-redis-config-grid {
     grid-template-columns: 1fr;
   }
 
