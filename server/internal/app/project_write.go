@@ -180,6 +180,7 @@ func (a *App) templateRuntime(projectName string) services.TemplateRuntime {
 		OpenRestyContainer:   a.cfg.OpenRestyContainer,
 		OpenRestyHostConfDir: filepath.Join(a.cfg.OpenRestyDataDir, "conf.d"),
 		OpenRestyHostSiteDir: filepath.Join(a.cfg.OpenRestyDataDir, "www"),
+		OpenRestyHostCertDir: filepath.Join(a.cfg.OpenRestyDataDir, "certs"),
 	}
 }
 

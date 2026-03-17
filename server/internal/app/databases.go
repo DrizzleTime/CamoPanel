@@ -155,6 +155,26 @@ func (a *App) handleCreateManagedDatabase(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+func (a *App) handleDeleteManagedDatabase(c *gin.Context) {
+	project, err := a.findManagedDatabaseProject(c.Param("id"))
+	if err != nil {
+		writeError(c, http.StatusNotFound, err.Error())
+		return
+	}
+
+	name := strings.TrimSpace(c.Param("name"))
+	if err := a.deleteManagedDatabase(c.Request.Context(), project, name); err != nil {
+		writeDatabaseError(c, err)
+		return
+	}
+
+	_ = a.recordAudit(currentUser(c).ID, "database_delete", "project", project.ID, map[string]any{
+		"engine": project.TemplateID,
+		"name":   name,
+	})
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 func (a *App) handleCreateDatabaseAccount(c *gin.Context) {
 	project, err := a.findManagedDatabaseProject(c.Param("id"))
 	if err != nil {
@@ -177,6 +197,26 @@ func (a *App) handleCreateDatabaseAccount(c *gin.Context) {
 		"engine":        project.TemplateID,
 		"account_name":  strings.TrimSpace(req.Name),
 		"database_name": strings.TrimSpace(req.DatabaseName),
+	})
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *App) handleDeleteDatabaseAccount(c *gin.Context) {
+	project, err := a.findManagedDatabaseProject(c.Param("id"))
+	if err != nil {
+		writeError(c, http.StatusNotFound, err.Error())
+		return
+	}
+
+	accountName := strings.TrimSpace(c.Param("account"))
+	if err := a.deleteDatabaseAccount(c.Request.Context(), project, accountName); err != nil {
+		writeDatabaseError(c, err)
+		return
+	}
+
+	_ = a.recordAudit(currentUser(c).ID, "database_account_delete", "project", project.ID, map[string]any{
+		"engine":       project.TemplateID,
+		"account_name": accountName,
 	})
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
@@ -408,6 +448,43 @@ func (a *App) createManagedDatabase(ctx context.Context, project model.Project, 
 	}
 }
 
+func (a *App) deleteManagedDatabase(ctx context.Context, project model.Project, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("请输入数据库名")
+	}
+	if isProtectedDatabaseName(project.TemplateID, name) {
+		return fmt.Errorf("系统数据库不允许删除")
+	}
+
+	containerName, config, err := a.runningDatabaseTarget(ctx, project)
+	if err != nil {
+		return err
+	}
+
+	switch project.TemplateID {
+	case databaseEngineMySQL:
+		return a.execMySQL(ctx, containerName, config, fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s;",
+			mysqlIdentifier(name),
+		))
+	case databaseEnginePostgres:
+		if _, err := a.execPostgresQuery(ctx, containerName, config, fmt.Sprintf(
+			"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid();",
+			sqlString(name),
+		)); err != nil {
+			return err
+		}
+		_, err := a.execPostgresQuery(ctx, containerName, config, fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s;",
+			postgresIdentifier(name),
+		))
+		return err
+	default:
+		return fmt.Errorf("当前数据库类型不支持删除数据库")
+	}
+}
+
 func (a *App) createDatabaseAccount(ctx context.Context, project model.Project, req createDatabaseAccountRequest) error {
 	req.Name = strings.TrimSpace(req.Name)
 	req.Password = strings.TrimSpace(req.Password)
@@ -467,6 +544,42 @@ func (a *App) createDatabaseAccount(ctx context.Context, project model.Project, 
 		return nil
 	default:
 		return fmt.Errorf("当前数据库类型不支持创建账号")
+	}
+}
+
+func (a *App) deleteDatabaseAccount(ctx context.Context, project model.Project, accountName string) error {
+	accountName = strings.TrimSpace(accountName)
+	if accountName == "" {
+		return fmt.Errorf("请输入账号名")
+	}
+
+	config := map[string]any{}
+	_ = json.Unmarshal([]byte(project.ConfigJSON), &config)
+
+	adminUsername := databaseConnectionFromConfig(project.TemplateID, config).AdminUsername
+	if strings.EqualFold(accountName, adminUsername) {
+		return fmt.Errorf("管理账号不允许删除")
+	}
+
+	containerName, config, err := a.runningDatabaseTarget(ctx, project)
+	if err != nil {
+		return err
+	}
+
+	switch project.TemplateID {
+	case databaseEngineMySQL:
+		return a.execMySQL(ctx, containerName, config, fmt.Sprintf(
+			"DROP USER IF EXISTS %s@'%%';",
+			sqlString(accountName),
+		))
+	case databaseEnginePostgres:
+		_, err := a.execPostgresQuery(ctx, containerName, config, fmt.Sprintf(
+			"DROP ROLE IF EXISTS %s;",
+			postgresIdentifier(accountName),
+		))
+		return err
+	default:
+		return fmt.Errorf("当前数据库类型不支持删除账号")
 	}
 }
 
@@ -893,6 +1006,26 @@ func splitLines(raw string) []string {
 		lines = append(lines, trimmed)
 	}
 	return lines
+}
+
+func isProtectedDatabaseName(engine string, name string) bool {
+	switch engine {
+	case databaseEngineMySQL:
+		return slices.Contains([]string{
+			"information_schema",
+			"mysql",
+			"performance_schema",
+			"sys",
+		}, strings.ToLower(strings.TrimSpace(name)))
+	case databaseEnginePostgres:
+		return slices.Contains([]string{
+			"postgres",
+			"template0",
+			"template1",
+		}, strings.ToLower(strings.TrimSpace(name)))
+	default:
+		return false
+	}
 }
 
 func sqlString(value string) string {

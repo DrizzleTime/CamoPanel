@@ -8,6 +8,7 @@ import {
   GlobalOutlined,
   LogoutOutlined,
   MessageOutlined,
+  ScheduleOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useState, type ReactNode } from "react";
@@ -44,6 +45,13 @@ const navigationItems = [
     label: "数据库",
     headerTitle: "数据库管理",
     headerDescription: "统一管理 MySQL、PostgreSQL 和 Redis。",
+  },
+  {
+    key: "/app/schedules",
+    icon: <ScheduleOutlined />,
+    label: "定时任务",
+    headerTitle: "定时任务",
+    headerDescription: "统一查看 cron 任务和脚本资产，当前页面仅提供 UI 骨架。",
   },
   {
     key: "/app/files",

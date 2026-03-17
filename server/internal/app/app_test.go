@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"camopanel/server/internal/config"
 	"camopanel/server/internal/model"
@@ -75,9 +76,16 @@ func (f *fakeExecutor) ProjectLogs(_ context.Context, _ string, _ int) (string, 
 }
 
 type fakeOpenResty struct {
-	ready       bool
-	createCalls int
-	lastSpec    services.WebsiteSpec
+	ready                  bool
+	createCalls            int
+	updateCalls            int
+	deleteCalls            int
+	syncCalls              int
+	issueCertificateCalls  int
+	deleteCertificateCalls int
+	lastSpec               services.WebsiteSpec
+	lastConfig             string
+	lastCertificate        services.CertificateSpec
 }
 
 func (f *fakeOpenResty) Status(_ context.Context) services.OpenRestyStatus {
@@ -109,6 +117,67 @@ func (f *fakeOpenResty) CreateWebsite(_ context.Context, spec services.WebsiteSp
 		RootPath:   filepath.Join("/tmp", spec.Name, "html"),
 		ConfigPath: filepath.Join("/tmp", spec.Name+".conf"),
 	}, nil
+}
+
+func (f *fakeOpenResty) UpdateWebsite(_ context.Context, spec services.WebsiteSpec, configPath string) (services.WebsiteMaterialized, error) {
+	if !f.ready {
+		return services.WebsiteMaterialized{}, services.ErrOpenRestyUnavailable
+	}
+	f.updateCalls++
+	f.lastSpec = spec
+	f.lastConfig = configPath
+	return services.WebsiteMaterialized{
+		RootPath:   spec.RootPath,
+		ConfigPath: configPath,
+	}, nil
+}
+
+func (f *fakeOpenResty) SyncWebsite(_ context.Context, spec services.WebsiteSpec) (services.WebsiteMaterialized, error) {
+	if !f.ready {
+		return services.WebsiteMaterialized{}, services.ErrOpenRestyUnavailable
+	}
+	f.syncCalls++
+	f.lastSpec = spec
+	return services.WebsiteMaterialized{
+		RootPath:   spec.RootPath,
+		ConfigPath: filepath.Join("/tmp", spec.Name+".conf"),
+	}, nil
+}
+
+func (f *fakeOpenResty) DeleteWebsite(_ context.Context, configPath string) error {
+	if !f.ready {
+		return services.ErrOpenRestyUnavailable
+	}
+	f.deleteCalls++
+	f.lastConfig = configPath
+	return nil
+}
+
+func (f *fakeOpenResty) PreviewWebsiteConfig(spec services.WebsiteSpec) (string, error) {
+	return "server_name " + spec.Domain + ";", nil
+}
+
+func (f *fakeOpenResty) IssueCertificate(_ context.Context, spec services.CertificateSpec) (services.CertificateMaterialized, error) {
+	if !f.ready {
+		return services.CertificateMaterialized{}, services.ErrOpenRestyUnavailable
+	}
+	f.issueCertificateCalls++
+	f.lastCertificate = spec
+	return services.CertificateMaterialized{
+		Provider:       "letsencrypt",
+		FullchainPath:  filepath.Join("/tmp", "certs", spec.Domain, "fullchain.pem"),
+		PrivateKeyPath: filepath.Join("/tmp", "certs", spec.Domain, "privkey.pem"),
+		ExpiresAt:      time.Now().UTC().Add(90 * 24 * time.Hour),
+	}, nil
+}
+
+func (f *fakeOpenResty) DeleteCertificate(_ context.Context, domain string) error {
+	if !f.ready {
+		return services.ErrOpenRestyUnavailable
+	}
+	f.deleteCertificateCalls++
+	f.lastCertificate = services.CertificateSpec{Domain: domain}
+	return nil
 }
 
 func TestCreateProjectLifecycle(t *testing.T) {
@@ -215,6 +284,157 @@ func TestCreateWebsiteRequiresOpenResty(t *testing.T) {
 	}
 }
 
+func TestCreateCertificateLifecycle(t *testing.T) {
+	instance := newTestApp(t)
+	openresty := &fakeOpenResty{ready: true}
+	instance.openresty = openresty
+
+	_, err := instance.createWebsite(context.Background(), "tester", createWebsiteRequest{
+		Name:        "demo-site",
+		Type:        model.WebsiteTypeStatic,
+		Domain:      "demo.local",
+		IndexFiles:  "index.html index.htm",
+		RewriteMode: "off",
+	})
+	if err != nil {
+		t.Fatalf("create website: %v", err)
+	}
+
+	item, err := instance.createCertificate(context.Background(), "tester", createCertificateRequest{
+		Domain: "demo.local",
+		Email:  "admin@example.com",
+	})
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+	if openresty.issueCertificateCalls != 1 {
+		t.Fatalf("expected issue certificate call once, got %d", openresty.issueCertificateCalls)
+	}
+	if openresty.syncCalls != 2 {
+		t.Fatalf("expected sync website call twice, got %d", openresty.syncCalls)
+	}
+	if item.Domain != "demo.local" {
+		t.Fatalf("expected certificate domain demo.local, got %s", item.Domain)
+	}
+
+	var count int64
+	if err := instance.db.Model(&model.Certificate{}).Count(&count).Error; err != nil {
+		t.Fatalf("count certificates: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 certificate, got %d", count)
+	}
+}
+
+func TestDeleteCertificateLifecycle(t *testing.T) {
+	instance := newTestApp(t)
+	openresty := &fakeOpenResty{ready: true}
+	instance.openresty = openresty
+
+	website, err := instance.createWebsite(context.Background(), "tester", createWebsiteRequest{
+		Name:        "demo-site",
+		Type:        model.WebsiteTypeStatic,
+		Domain:      "demo.local",
+		IndexFiles:  "index.html index.htm",
+		RewriteMode: "off",
+	})
+	if err != nil {
+		t.Fatalf("create website: %v", err)
+	}
+	if _, err := instance.createCertificate(context.Background(), "tester", createCertificateRequest{
+		Domain: "demo.local",
+		Email:  "admin@example.com",
+	}); err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+
+	certificate, err := instance.findCertificateByDomain(website.Domain)
+	if err != nil {
+		t.Fatalf("find certificate: %v", err)
+	}
+	if err := instance.deleteCertificate(context.Background(), "tester", certificate); err != nil {
+		t.Fatalf("delete certificate: %v", err)
+	}
+	if openresty.deleteCertificateCalls != 1 {
+		t.Fatalf("expected delete certificate call once, got %d", openresty.deleteCertificateCalls)
+	}
+
+	var count int64
+	if err := instance.db.Model(&model.Certificate{}).Count(&count).Error; err != nil {
+		t.Fatalf("count certificates: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 certificates, got %d", count)
+	}
+}
+
+func TestUpdateWebsiteLifecycle(t *testing.T) {
+	instance := newTestApp(t)
+	openresty := &fakeOpenResty{ready: true}
+	instance.openresty = openresty
+
+	website, err := instance.createWebsite(context.Background(), "tester", createWebsiteRequest{
+		Name:   "demo-site",
+		Type:   model.WebsiteTypeStatic,
+		Domain: "demo.local",
+	})
+	if err != nil {
+		t.Fatalf("create website: %v", err)
+	}
+
+	updated, err := instance.updateWebsite(context.Background(), "tester", website, updateWebsiteRequest{
+		Name:        "demo-site",
+		Type:        model.WebsiteTypeProxy,
+		Domain:      "updated.local",
+		Domains:     []string{"www.updated.local"},
+		ProxyPass:   "http://127.0.0.1:3000",
+		RewriteMode: "off",
+		IndexFiles:  "index.html index.htm",
+	})
+	if err != nil {
+		t.Fatalf("update website: %v", err)
+	}
+	if openresty.updateCalls != 1 {
+		t.Fatalf("expected update website call once, got %d", openresty.updateCalls)
+	}
+	if updated.Domain != "updated.local" {
+		t.Fatalf("expected updated domain, got %s", updated.Domain)
+	}
+	if updated.Type != model.WebsiteTypeProxy {
+		t.Fatalf("expected updated type proxy, got %s", updated.Type)
+	}
+}
+
+func TestDeleteWebsiteLifecycle(t *testing.T) {
+	instance := newTestApp(t)
+	openresty := &fakeOpenResty{ready: true}
+	instance.openresty = openresty
+
+	website, err := instance.createWebsite(context.Background(), "tester", createWebsiteRequest{
+		Name:   "demo-site",
+		Type:   model.WebsiteTypeStatic,
+		Domain: "demo.local",
+	})
+	if err != nil {
+		t.Fatalf("create website: %v", err)
+	}
+
+	if err := instance.deleteWebsite(context.Background(), "tester", website); err != nil {
+		t.Fatalf("delete website: %v", err)
+	}
+	if openresty.deleteCalls != 1 {
+		t.Fatalf("expected delete website call once, got %d", openresty.deleteCalls)
+	}
+
+	var count int64
+	if err := instance.db.Model(&model.Website{}).Count(&count).Error; err != nil {
+		t.Fatalf("count websites: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 websites, got %d", count)
+	}
+}
+
 func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
 	instance := newTestApp(t)
 	executor := &fakeExecutor{runtimeStatus: "running"}
@@ -258,6 +478,10 @@ func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
 	}
 	if !strings.Contains(content, siteDir+":/var/www/openresty") {
 		t.Fatalf("expected site dir bind, got %s", content)
+	}
+	certDir := filepath.Join(instance.cfg.OpenRestyDataDir, "certs")
+	if !strings.Contains(content, certDir+":/etc/camopanel/certs") {
+		t.Fatalf("expected cert dir bind, got %s", content)
 	}
 }
 
@@ -369,6 +593,7 @@ params: []
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/openresty/conf.d"
       - "{{ .Runtime.OpenRestyHostSiteDir }}:/var/www/openresty"
+      - "{{ .Runtime.OpenRestyHostCertDir }}:/etc/camopanel/certs"
 `)
 
 	cfg := config.Config{

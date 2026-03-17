@@ -37,7 +37,7 @@ func New(cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Website{}, &model.AuditEvent{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Website{}, &model.Certificate{}, &model.AuditEvent{}); err != nil {
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
 	if err := cleanupLegacyApprovalData(db); err != nil {
@@ -102,13 +102,21 @@ func (a *App) router() *gin.Engine {
 		api.GET("/docker/system", a.handleDockerSystem)
 		api.GET("/websites", a.handleWebsites)
 		api.POST("/websites", a.handleCreateWebsite)
+		api.GET("/certificates", a.handleCertificates)
+		api.POST("/certificates", a.handleCreateCertificate)
+		api.DELETE("/certificates/:id", a.handleDeleteCertificate)
+		api.PUT("/websites/:id", a.handleUpdateWebsite)
+		api.DELETE("/websites/:id", a.handleDeleteWebsite)
+		api.GET("/websites/:id/config-preview", a.handleWebsiteConfigPreview)
 		api.GET("/projects/:id", a.handleProject)
 		api.POST("/projects/:id/actions", a.handleProjectAction)
 		api.GET("/projects/:id/logs", a.handleProjectLogs)
 		api.GET("/databases", a.handleDatabaseInstances)
 		api.GET("/databases/:id/overview", a.handleDatabaseOverview)
 		api.POST("/databases/:id/databases", a.handleCreateManagedDatabase)
+		api.DELETE("/databases/:id/databases/:name", a.handleDeleteManagedDatabase)
 		api.POST("/databases/:id/accounts", a.handleCreateDatabaseAccount)
+		api.DELETE("/databases/:id/accounts/:account", a.handleDeleteDatabaseAccount)
 		api.POST("/databases/:id/accounts/:account/password", a.handleUpdateDatabaseAccountPassword)
 		api.POST("/databases/:id/grants", a.handleGrantDatabaseAccount)
 		api.POST("/databases/:id/redis/config", a.handleUpdateRedisConfig)

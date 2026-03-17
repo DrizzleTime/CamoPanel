@@ -44,6 +44,7 @@ type TemplateRuntime struct {
 	OpenRestyContainer   string
 	OpenRestyHostConfDir string
 	OpenRestyHostSiteDir string
+	OpenRestyHostCertDir string
 }
 
 type LoadedTemplate struct {

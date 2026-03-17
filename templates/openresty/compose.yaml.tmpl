@@ -8,3 +8,4 @@ services:
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/openresty/conf.d"
       - "{{ .Runtime.OpenRestyHostSiteDir }}:/var/www/openresty"
+      - "{{ .Runtime.OpenRestyHostCertDir }}:/etc/camopanel/certs"

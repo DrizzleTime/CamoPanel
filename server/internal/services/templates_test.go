@@ -95,12 +95,14 @@ func TestTemplateRenderSupportsRuntimeContext(t *testing.T) {
     network_mode: host
     volumes:
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
+      - "{{ .Runtime.OpenRestyHostCertDir }}:/etc/camopanel/certs"
 `,
 	}
 
 	rendered, err := item.Render(map[string]any{}, TemplateRuntime{
 		OpenRestyContainer:   "camopanel-openresty",
 		OpenRestyHostConfDir: "/var/lib/camopanel/openresty/conf.d",
+		OpenRestyHostCertDir: "/var/lib/camopanel/openresty/certs",
 	})
 	if err != nil {
 		t.Fatalf("render with runtime: %v", err)
@@ -114,5 +116,8 @@ func TestTemplateRenderSupportsRuntimeContext(t *testing.T) {
 	}
 	if !strings.Contains(rendered, "/var/lib/camopanel/openresty/conf.d:/etc/nginx/conf.d") {
 		t.Fatalf("expected rendered compose to include conf dir bind, got %s", rendered)
+	}
+	if !strings.Contains(rendered, "/var/lib/camopanel/openresty/certs:/etc/camopanel/certs") {
+		t.Fatalf("expected rendered compose to include cert dir bind, got %s", rendered)
 	}
 }
