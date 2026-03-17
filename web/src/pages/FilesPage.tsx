@@ -390,7 +390,7 @@ export function FilesPage() {
 
       <Drawer
         open={editorOpen}
-        width={820}
+        size={820}
         title={activeFile?.name || "文件"}
         onClose={() => {
           setEditorOpen(false);

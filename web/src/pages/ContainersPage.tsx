@@ -570,7 +570,7 @@ export function ContainersPage() {
       <Drawer
         open={!!activeContainer}
         onClose={() => setActiveContainer(null)}
-        width={720}
+        size={720}
         title={activeContainer?.name}
         extra={<Tag color={containerStateColor(activeContainer?.state)}>{activeContainer?.state || "unknown"}</Tag>}
       >
@@ -596,7 +596,7 @@ export function ContainersPage() {
       <Drawer
         open={!!activeProject}
         onClose={() => setActiveProject(null)}
-        width={720}
+        size={720}
         title={activeProject?.name}
         extra={<Tag color={projectStatusColor(activeProject?.status)}>{activeProject?.status}</Tag>}
       >

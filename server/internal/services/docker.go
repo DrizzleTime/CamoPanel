@@ -371,9 +371,12 @@ func (d *DockerService) GetSystemInfo(ctx context.Context) (DockerSystemInfo, er
 	}
 	sort.Strings(runtimes)
 
-	networkPlugins := append([]string(nil), info.Plugins.Network...)
-	volumePlugins := append([]string(nil), info.Plugins.Volume...)
-	warnings := append([]string(nil), info.Warnings...)
+	networkPlugins := make([]string, 0, len(info.Plugins.Network))
+	networkPlugins = append(networkPlugins, info.Plugins.Network...)
+	volumePlugins := make([]string, 0, len(info.Plugins.Volume))
+	volumePlugins = append(volumePlugins, info.Plugins.Volume...)
+	warnings := make([]string, 0, len(info.Warnings))
+	warnings = append(warnings, info.Warnings...)
 	sort.Strings(networkPlugins)
 	sort.Strings(volumePlugins)
 

@@ -18,7 +18,8 @@ import {
   Typography,
   message,
 } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ShellPageMeta, useShellHeader } from "../components/ShellHeaderContext";
 import { apiRequest } from "../lib/api";
 import type { OpenRestyStatus, Website } from "../lib/types";
 
@@ -30,6 +31,12 @@ export function WebsitesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const websiteType = Form.useWatch("type", form) ?? "static";
+
+  const openCreateModal = () => {
+    form.resetFields();
+    form.setFieldsValue({ type: "static" });
+    setModalOpen(true);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -48,6 +55,20 @@ export function WebsitesPage() {
   useEffect(() => {
     void loadData();
   }, []);
+
+  const headerContent = useMemo(
+    () => (
+      <div className="shell-header-website">
+        <ShellPageMeta title="网站管理" description="管理固定 OpenResty 容器里的站点入口。" />
+        <Button type="primary" onClick={openCreateModal} disabled={!status?.ready}>
+          创建站点
+        </Button>
+      </div>
+    ),
+    [form, status?.ready],
+  );
+
+  useShellHeader(headerContent);
 
   const createWebsite = async (values: Record<string, string>) => {
     setSubmitting(true);
@@ -74,11 +95,13 @@ export function WebsitesPage() {
     <div className="page-grid">
       <Card className="glass-card">
         <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-          <Alert
-            showIcon
-            type="info"
-            message="如果固定 OpenResty 容器还没安装，可以先到应用商店安装 OpenResty 模板。"
-          />
+          {status?.exists === false ? (
+            <Alert
+              showIcon
+              type="info"
+              message="如果固定 OpenResty 容器还没安装，可以先到应用商店安装 OpenResty 模板。"
+            />
+          ) : null}
           <div
             style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}
           >
@@ -90,22 +113,9 @@ export function WebsitesPage() {
                 创建站点前会先检查容器状态，然后在容器内执行配置校验和 reload。
               </Typography.Paragraph>
             </div>
-            <Space>
-              <Button icon={<ReloadOutlined />} onClick={() => void loadData()}>
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                onClick={() => {
-                  form.resetFields();
-                  form.setFieldsValue({ type: "static" });
-                  setModalOpen(true);
-                }}
-                disabled={!status?.ready}
-              >
-                创建站点
-              </Button>
-            </Space>
+            <Button icon={<ReloadOutlined />} onClick={() => void loadData()}>
+              刷新
+            </Button>
           </div>
 
           <Alert

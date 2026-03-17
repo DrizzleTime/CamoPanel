@@ -16,7 +16,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ShellHeaderContext, ShellPageMeta } from "./ShellHeaderContext";
 import { useAuthStore } from "../store/auth";
 
-const items = [
+const navigationItems = [
   {
     key: "/app/dashboard",
     icon: <CloudServerOutlined />,
@@ -68,13 +68,19 @@ const items = [
   },
 ];
 
+const menuItems = navigationItems.map(({ key, icon, label }) => ({
+  key,
+  icon,
+  label,
+}));
+
 export function ShellLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { token } = theme.useToken();
   const [headerContent, setHeaderContent] = useState<ReactNode | null>(null);
-  const currentItem = items.find((item) => location.pathname.startsWith(item.key));
+  const currentItem = navigationItems.find((item) => location.pathname.startsWith(item.key));
   const userMenu = {
     items: [
       {
@@ -117,7 +123,7 @@ export function ShellLayout() {
             theme="dark"
             mode="inline"
             selectedKeys={[location.pathname]}
-            items={items}
+            items={menuItems}
             onClick={({ key }) => navigate(key)}
             style={{ background: "transparent", borderInlineEnd: 0, padding: "12px 8px 0" }}
           />

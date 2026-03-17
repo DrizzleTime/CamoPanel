@@ -110,6 +110,15 @@ body {
   padding-bottom: 2px;
 }
 
+.shell-header-website {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .shell-header-tab {
   flex: none;
   border-radius: 999px;

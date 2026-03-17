@@ -301,7 +301,7 @@ export function StorePage() {
       <Drawer
         open={!!activeTemplate}
         title={activeTemplate ? `安装 ${activeTemplate.name}` : "安装应用"}
-        width={520}
+        size={520}
         onClose={() => setActiveTemplate(null)}
         destroyOnHidden
         extra={
