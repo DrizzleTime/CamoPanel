@@ -39,22 +39,22 @@ type Project struct {
 }
 
 type Website struct {
-	ID            string    `gorm:"primaryKey" json:"id"`
-	Name          string    `gorm:"uniqueIndex;not null" json:"name"`
-	Type          string    `gorm:"not null" json:"type"`
-	Domain        string    `gorm:"uniqueIndex;not null" json:"domain"`
-	DomainsJSON   string    `gorm:"type:text" json:"domains_json"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Type          string    `json:"type"`
+	Domain        string    `json:"domain"`
+	DomainsJSON   string    `json:"domains_json"`
 	SiteMode      string    `json:"site_mode"`
-	RootPath      string    `gorm:"not null" json:"root_path"`
+	RootPath      string    `json:"root_path"`
 	IndexFiles    string    `json:"index_files"`
-	ProxyPass     string    `gorm:"not null" json:"proxy_pass"`
+	ProxyPass     string    `json:"proxy_pass"`
 	PHPProjectID  string    `json:"php_project_id"`
 	PHPPort       int       `json:"php_port"`
 	RewriteMode   string    `json:"rewrite_mode"`
 	RewritePreset string    `json:"rewrite_preset"`
-	RewriteRules  string    `gorm:"type:text" json:"rewrite_rules"`
-	ConfigPath    string    `gorm:"not null" json:"config_path"`
-	Status        string    `gorm:"not null" json:"status"`
+	RewriteRules  string    `json:"rewrite_rules"`
+	ConfigPath    string    `json:"config_path"`
+	Status        string    `json:"status"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }

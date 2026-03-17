@@ -261,12 +261,12 @@ func TestCreateWebsiteLifecycle(t *testing.T) {
 		t.Fatalf("expected website domain demo.local, got %s", website.Domain)
 	}
 
-	var count int64
-	if err := instance.db.Model(&model.Website{}).Count(&count).Error; err != nil {
-		t.Fatalf("count websites: %v", err)
+	websites, err := instance.listWebsites()
+	if err != nil {
+		t.Fatalf("list websites: %v", err)
 	}
-	if count != 1 {
-		t.Fatalf("expected 1 website, got %d", count)
+	if len(websites) != 1 {
+		t.Fatalf("expected 1 website, got %d", len(websites))
 	}
 }
 
@@ -426,12 +426,12 @@ func TestDeleteWebsiteLifecycle(t *testing.T) {
 		t.Fatalf("expected delete website call once, got %d", openresty.deleteCalls)
 	}
 
-	var count int64
-	if err := instance.db.Model(&model.Website{}).Count(&count).Error; err != nil {
-		t.Fatalf("count websites: %v", err)
+	websites, err := instance.listWebsites()
+	if err != nil {
+		t.Fatalf("list websites: %v", err)
 	}
-	if count != 0 {
-		t.Fatalf("expected 0 websites, got %d", count)
+	if len(websites) != 0 {
+		t.Fatalf("expected 0 websites, got %d", len(websites))
 	}
 }
 

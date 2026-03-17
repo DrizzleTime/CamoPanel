@@ -448,6 +448,46 @@ body {
   padding: 36px 24px;
 }
 
+.store-instance-card {
+  border: 1px solid #ececec;
+  background: #fafafa;
+  box-shadow: none;
+}
+
+.store-instance-card .ant-card-body {
+  padding: 18px 20px;
+}
+
+.store-instance-card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.store-instance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.store-instance-summary {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.store-instance-title {
+  margin: 0 !important;
+}
+
+.store-instance-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .database-page {
   gap: 20px;
 }
@@ -736,7 +776,8 @@ body {
   }
 
   .store-app-title-row,
-  .store-app-footer {
+  .store-app-footer,
+  .store-instance-footer {
     flex-direction: column;
     align-items: stretch;
   }

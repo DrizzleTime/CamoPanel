@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"camopanel/server/internal/model"
 	"camopanel/server/internal/services"
@@ -182,8 +183,9 @@ func (a *App) updateWebsite(ctx context.Context, actorID string, website model.W
 	website.RewriteRules = payload.RewriteRules
 	website.ConfigPath = materialized.ConfigPath
 	website.Status = "ready"
+	website.UpdatedAt = time.Now().UTC()
 
-	if err := a.db.Save(&website).Error; err != nil {
+	if err := a.saveWebsite(website); err != nil {
 		return model.Website{}, err
 	}
 
@@ -198,7 +200,7 @@ func (a *App) deleteWebsite(ctx context.Context, actorID string, website model.W
 	if err := a.openresty.DeleteWebsite(ctx, website.ConfigPath); err != nil {
 		return err
 	}
-	if err := a.db.Delete(&website).Error; err != nil {
+	if err := a.removeWebsite(website); err != nil {
 		return err
 	}
 	_ = a.recordAudit(actorID, "website_delete", "website", website.ID, map[string]any{
@@ -338,40 +340,28 @@ func (a *App) executeCreateWebsite(ctx context.Context, payload createWebsitePay
 		RewriteRules:  payload.RewriteRules,
 		ConfigPath:    materialized.ConfigPath,
 		Status:        "ready",
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
 	}
-	if err := a.db.Create(&website).Error; err != nil {
+	if err := a.saveWebsite(website); err != nil {
 		return model.Website{}, err
 	}
 	return website, nil
 }
 
-func (a *App) listWebsites() ([]model.Website, error) {
-	var websites []model.Website
-	if err := a.db.Order("created_at desc").Find(&websites).Error; err != nil {
-		return nil, err
-	}
-	return websites, nil
-}
-
-func (a *App) findWebsite(websiteID string) (model.Website, error) {
-	var website model.Website
-	if err := a.db.First(&website, "id = ?", websiteID).Error; err != nil {
-		return model.Website{}, fmt.Errorf("站点不存在")
-	}
-	return website, nil
-}
-
 func (a *App) ensureWebsiteNameAvailable(name string, currentWebsiteID string) error {
-	var count int64
-	query := a.db.Model(&model.Website{}).Where("name = ?", name)
-	if currentWebsiteID != "" {
-		query = query.Where("id <> ?", currentWebsiteID)
-	}
-	if err := query.Count(&count).Error; err != nil {
+	websites, err := a.listWebsites()
+	if err != nil {
 		return err
 	}
-	if count > 0 {
-		return fmt.Errorf("网站名已存在")
+
+	for _, website := range websites {
+		if currentWebsiteID != "" && website.ID == currentWebsiteID {
+			continue
+		}
+		if website.Name == name {
+			return fmt.Errorf("网站名已存在")
+		}
 	}
 	return nil
 }

@@ -37,7 +37,7 @@ func New(cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Website{}, &model.Certificate{}, &model.AuditEvent{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Certificate{}, &model.AuditEvent{}); err != nil {
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
 	if err := cleanupLegacyApprovalData(db); err != nil {

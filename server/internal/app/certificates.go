@@ -186,8 +186,8 @@ func (a *App) listCertificateItems() ([]certificateItem, error) {
 		return nil, err
 	}
 
-	var websites []model.Website
-	if err := a.db.Find(&websites).Error; err != nil {
+	websites, err := a.listWebsites()
+	if err != nil {
 		return nil, err
 	}
 	websitesByDomain := map[string]model.Website{}
@@ -244,9 +244,15 @@ func (a *App) findCertificateByDomain(domain string) (model.Certificate, error) 
 }
 
 func (a *App) findWebsiteByDomain(domain string) (*model.Website, error) {
-	var website model.Website
-	if err := a.db.First(&website, "domain = ?", domain).Error; err != nil {
+	websites, err := a.listWebsites()
+	if err != nil {
 		return nil, err
 	}
-	return &website, nil
+	for _, website := range websites {
+		if normalizeDomain(website.Domain) == normalizeDomain(domain) {
+			matched := website
+			return &matched, nil
+		}
+	}
+	return nil, gorm.ErrRecordNotFound
 }

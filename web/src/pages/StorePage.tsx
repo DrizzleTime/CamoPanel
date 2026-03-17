@@ -1,7 +1,9 @@
 import {
   AppstoreOutlined,
   DatabaseOutlined,
+  DeleteOutlined,
   GlobalOutlined,
+  ReloadOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 import {
@@ -12,6 +14,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Popconfirm,
   Select,
   Space,
   Switch,
@@ -56,7 +59,9 @@ export function StorePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTemplate, setActiveTemplate] = useState<TemplateSpec | null>(null);
+  const [managedTemplate, setManagedTemplate] = useState<TemplateSpec | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [projectActionKey, setProjectActionKey] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StoreStatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<StoreCategoryFilter>("all");
   const [searchValue, setSearchValue] = useState("");
@@ -86,6 +91,19 @@ export function StorePage() {
       counts.set(project.template_id, (counts.get(project.template_id) ?? 0) + 1);
     }
     return counts;
+  }, [projects]);
+
+  const projectsByTemplate = useMemo(() => {
+    const grouped = new Map<string, Project[]>();
+    for (const project of projects) {
+      const items = grouped.get(project.template_id);
+      if (items) {
+        items.push(project);
+        continue;
+      }
+      grouped.set(project.template_id, [project]);
+    }
+    return grouped;
   }, [projects]);
 
   const deployedTemplateCount = useMemo(() => {
@@ -184,9 +202,27 @@ export function StorePage() {
       message.success("安装完成");
       setActiveTemplate(null);
       form.resetFields();
-      void loadStoreData();
+      await loadStoreData();
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const runProjectAction = async (project: Project, action: "delete" | "redeploy") => {
+    setProjectActionKey(`${project.id}:${action}`);
+    try {
+      await apiRequest(`/api/projects/${project.id}/actions`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      });
+      message.success(`${projectActionLabel(action)}完成`);
+      await loadStoreData();
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setProjectActionKey(null);
     }
   };
 
@@ -234,6 +270,7 @@ export function StorePage() {
             const category = getTemplateCategory(item);
             const categoryLabel = getCategoryLabel(category);
             const projectCount = projectCountByTemplate.get(item.id) ?? 0;
+            const templateProjects = projectsByTemplate.get(item.id) ?? [];
             const isDeployed = projectCount > 0;
 
             return (
@@ -273,9 +310,16 @@ export function StorePage() {
                         模板 ID：{item.id}
                       </Typography.Text>
                     </div>
-                    <Button type="primary" onClick={() => setActiveTemplate(item)}>
-                      安装
-                    </Button>
+                    <Space wrap>
+                      {isDeployed ? (
+                        <Button onClick={() => setManagedTemplate(item)}>
+                          管理实例
+                        </Button>
+                      ) : null}
+                      <Button type="primary" onClick={() => setActiveTemplate(item)}>
+                        {templateProjects.length > 0 ? "新安装" : "安装"}
+                      </Button>
+                    </Space>
                   </div>
                 </div>
               </Card>
@@ -330,6 +374,96 @@ export function StorePage() {
               <TemplateField key={param.name} param={param} />
             ))}
           </Form>
+        ) : null}
+      </Drawer>
+
+      <Drawer
+        open={!!managedTemplate}
+        title={managedTemplate ? `${managedTemplate.name} 实例管理` : "实例管理"}
+        size={520}
+        onClose={() => setManagedTemplate(null)}
+        destroyOnHidden
+      >
+        {managedTemplate ? (
+          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            <Typography.Text type="secondary">
+              卸载会删除当前项目实例，但不会清理卷数据。重装会重新部署当前配置，并保留已有数据。
+            </Typography.Text>
+            {(projectsByTemplate.get(managedTemplate.id) ?? []).length > 0 ? (
+              (projectsByTemplate.get(managedTemplate.id) ?? []).map((project) => (
+                <Card
+                  key={project.id}
+                  className="store-instance-card"
+                  variant="borderless"
+                >
+                  <div className="store-instance-card-body">
+                    <div className="store-instance-header">
+                      <div className="store-instance-summary">
+                        <Typography.Title level={5} className="store-instance-title">
+                          {project.name}
+                        </Typography.Title>
+                        <Space wrap size={[8, 8]}>
+                          <Tag color={projectStatusColor(project.status)}>{projectStatusLabel(project.status)}</Tag>
+                          <Tag>{project.runtime.containers.length} 个容器</Tag>
+                          <Tag>{formatDateTime(project.created_at)}</Tag>
+                        </Space>
+                      </div>
+                    </div>
+
+                    <Typography.Text type="secondary">
+                      {project.last_error || projectRuntimeHint(project)}
+                    </Typography.Text>
+
+                    <div className="store-instance-footer">
+                      <Typography.Text type="secondary">
+                        项目 ID：{project.id}
+                      </Typography.Text>
+                      <Space wrap>
+                        <Button
+                          icon={<ReloadOutlined />}
+                          loading={projectActionKey === `${project.id}:redeploy`}
+                          onClick={() => void runProjectAction(project, "redeploy")}
+                        >
+                          重装
+                        </Button>
+                        <Popconfirm
+                          title={`卸载 ${project.name}`}
+                          description="会删除项目实例和关联容器，但不会自动删除卷数据。"
+                          okText="卸载"
+                          cancelText="取消"
+                          okButtonProps={{ danger: true }}
+                          onConfirm={() => void runProjectAction(project, "delete")}
+                        >
+                          <Button
+                            danger
+                            icon={<DeleteOutlined />}
+                            loading={projectActionKey === `${project.id}:delete`}
+                          >
+                            卸载
+                          </Button>
+                        </Popconfirm>
+                      </Space>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            ) : (
+              <Empty
+                description="当前模板还没有项目实例"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              >
+                <Button
+                  type="primary"
+                  onClick={() => {
+                    setManagedTemplate(null);
+                    setActiveTemplate(managedTemplate);
+                  }}
+                >
+                  去安装
+                </Button>
+              </Empty>
+            )}
+          </Space>
         ) : null}
       </Drawer>
     </div>
@@ -416,6 +550,78 @@ function renderTemplateIcon(template: TemplateSpec) {
     default:
       return <AppstoreOutlined />;
   }
+}
+
+function projectActionLabel(action: "delete" | "redeploy") {
+  switch (action) {
+    case "delete":
+      return "卸载";
+    case "redeploy":
+      return "重装";
+    default:
+      return action;
+  }
+}
+
+function projectStatusColor(status?: string) {
+  switch (status) {
+    case "running":
+      return "green";
+    case "stopped":
+      return "gold";
+    case "degraded":
+      return "red";
+    default:
+      return "default";
+  }
+}
+
+function projectStatusLabel(status?: string) {
+  switch (status) {
+    case "running":
+      return "运行中";
+    case "stopped":
+      return "已停止";
+    case "degraded":
+      return "异常";
+    case "not_found":
+      return "未发现容器";
+    case "docker_unavailable":
+      return "Docker 不可用";
+    default:
+      return status || "未知";
+  }
+}
+
+function projectRuntimeHint(project: Project) {
+  if (project.runtime.containers.length === 0) {
+    return "当前没有发现关联容器，可尝试重装恢复。";
+  }
+  if (project.status === "degraded") {
+    return "部分容器未正常运行，建议先重装确认镜像和编排状态。";
+  }
+  if (project.status === "stopped") {
+    return "实例当前处于停止状态，重装会按原配置重新拉起。";
+  }
+  return "使用当前安装参数重新部署或直接卸载该实例。";
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("zh-CN", {
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "操作失败";
 }
 
 function isManagedOpenRestyTemplate(template: Pick<TemplateSpec, "id"> | null | undefined) {
