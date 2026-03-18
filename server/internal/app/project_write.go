@@ -145,6 +145,9 @@ func (a *App) executeDeploy(ctx context.Context, payload deployPayload) (model.P
 		return model.Project{}, err
 	}
 
+	if err := a.ensureProjectBridgeNetwork(ctx, payload.TemplateID); err != nil {
+		return model.Project{}, err
+	}
 	if err := a.executor.Deploy(ctx, payload.Name, composePath); err != nil {
 		return model.Project{}, err
 	}
@@ -177,11 +180,19 @@ func (a *App) executeDeploy(ctx context.Context, payload deployPayload) (model.P
 func (a *App) templateRuntime(projectName string) services.TemplateRuntime {
 	return services.TemplateRuntime{
 		ProjectName:          projectName,
+		BridgeNetworkName:    a.cfg.BridgeNetworkName,
 		OpenRestyContainer:   a.cfg.OpenRestyContainer,
 		OpenRestyHostConfDir: filepath.Join(a.cfg.OpenRestyDataDir, "conf.d"),
 		OpenRestyHostSiteDir: filepath.Join(a.cfg.OpenRestyDataDir, "www"),
 		OpenRestyHostCertDir: filepath.Join(a.cfg.OpenRestyDataDir, "certs"),
 	}
+}
+
+func (a *App) ensureProjectBridgeNetwork(ctx context.Context, templateID string) error {
+	if templateID == managedOpenRestyTemplateID {
+		return nil
+	}
+	return a.executor.EnsureNetwork(ctx, a.cfg.BridgeNetworkName, "bridge")
 }
 
 func (a *App) ensureManagedOpenRestyAvailable() error {
@@ -203,13 +214,19 @@ func (a *App) executeProjectAction(ctx context.Context, payload projectActionPay
 
 	switch payload.Action {
 	case model.ActionStart:
-		err = a.executor.Start(ctx, project.Name, project.ComposePath)
+		if err = a.ensureProjectBridgeNetwork(ctx, project.TemplateID); err == nil {
+			err = a.executor.Start(ctx, project.Name, project.ComposePath)
+		}
 	case model.ActionStop:
 		err = a.executor.Stop(ctx, project.Name, project.ComposePath)
 	case model.ActionRestart:
-		err = a.executor.Restart(ctx, project.Name, project.ComposePath)
+		if err = a.ensureProjectBridgeNetwork(ctx, project.TemplateID); err == nil {
+			err = a.executor.Restart(ctx, project.Name, project.ComposePath)
+		}
 	case model.ActionRedeploy:
-		err = a.executor.Redeploy(ctx, project.Name, project.ComposePath)
+		if err = a.ensureProjectBridgeNetwork(ctx, project.TemplateID); err == nil {
+			err = a.executor.Redeploy(ctx, project.Name, project.ComposePath)
+		}
 	case model.ActionDelete:
 		err = a.executor.Delete(ctx, project.Name, project.ComposePath)
 	default:

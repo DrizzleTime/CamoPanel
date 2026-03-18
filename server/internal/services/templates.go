@@ -41,6 +41,7 @@ type TemplateSpec struct {
 
 type TemplateRuntime struct {
 	ProjectName          string
+	BridgeNetworkName    string
 	OpenRestyContainer   string
 	OpenRestyHostConfDir string
 	OpenRestyHostSiteDir string

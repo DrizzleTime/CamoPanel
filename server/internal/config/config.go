@@ -22,6 +22,8 @@ type Config struct {
 	CookieName         string
 	AdminUsername      string
 	AdminPassword      string
+	BridgeNetworkName  string
+	HostControlHelper  string
 	OpenRestyContainer string
 	OpenRestyDataDir   string
 	AI                 AIConfig
@@ -49,6 +51,8 @@ func Load() (Config, error) {
 		CookieName:         env("CAMO_COOKIE_NAME", "camopanel_session"),
 		AdminUsername:      env("CAMO_ADMIN_USERNAME", "admin"),
 		AdminPassword:      env("CAMO_ADMIN_PASSWORD", "admin123"),
+		BridgeNetworkName:  env("CAMO_BRIDGE_NETWORK", "camopanel"),
+		HostControlHelper:  env("CAMO_HOST_CONTROL_HELPER", "/usr/local/bin/camopanel-hostctl"),
 		OpenRestyContainer: env("CAMO_OPENRESTY_CONTAINER", "camopanel-openresty"),
 		OpenRestyDataDir:   filepath.Join(dataDir, "openresty"),
 		AI: AIConfig{

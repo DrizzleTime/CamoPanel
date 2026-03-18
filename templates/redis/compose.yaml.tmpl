@@ -2,6 +2,10 @@ services:
   redis:
     image: redis:7.2
     restart: unless-stopped
+    networks:
+      camopanel:
+        aliases:
+          - "{{ .Runtime.ProjectName }}"
     command:
       - redis-server
       - --requirepass
@@ -17,3 +21,8 @@ services:
 
 volumes:
   redis-data:
+
+networks:
+  camopanel:
+    external: true
+    name: "{{ .Runtime.BridgeNetworkName }}"

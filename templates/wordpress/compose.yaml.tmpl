@@ -2,6 +2,10 @@ services:
   db:
     image: mariadb:11
     restart: unless-stopped
+    networks:
+      camopanel:
+        aliases:
+          - "{{ .Runtime.ProjectName }}-db"
     environment:
       MARIADB_DATABASE: {{ .Values.db_name }}
       MARIADB_USER: {{ .Values.db_user }}
@@ -15,8 +19,12 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+    networks:
+      camopanel:
+        aliases:
+          - "{{ .Runtime.ProjectName }}"
     environment:
-      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_HOST: {{ .Runtime.ProjectName }}-db:3306
       WORDPRESS_DB_USER: {{ .Values.db_user }}
       WORDPRESS_DB_PASSWORD: {{ .Values.db_password }}
       WORDPRESS_DB_NAME: {{ .Values.db_name }}
@@ -28,3 +36,8 @@ services:
 volumes:
   wordpress-db:
   wordpress-app:
+
+networks:
+  camopanel:
+    external: true
+    name: "{{ .Runtime.BridgeNetworkName }}"

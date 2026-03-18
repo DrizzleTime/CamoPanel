@@ -1,7 +1,10 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,16 +14,28 @@ import (
 	"camopanel/server/internal/config"
 	"camopanel/server/internal/model"
 	"camopanel/server/internal/services"
+
+	"github.com/gin-gonic/gin"
 )
 
 type fakeExecutor struct {
-	deployCalls   int
-	restartCalls  int
-	deleteCalls   int
-	lastProject   string
-	lastCompose   string
-	runtimeStatus string
-	logs          string
+	deployCalls        int
+	restartCalls       int
+	deleteCalls        int
+	ensureNetworkCalls int
+	lastProject        string
+	lastCompose        string
+	lastNetworkName    string
+	lastNetworkDriver  string
+	runtimeStatus      string
+	logs               string
+}
+
+func (f *fakeExecutor) EnsureNetwork(_ context.Context, name, driver string) error {
+	f.ensureNetworkCalls++
+	f.lastNetworkName = name
+	f.lastNetworkDriver = driver
+	return nil
 }
 
 func (f *fakeExecutor) Deploy(_ context.Context, projectName, composePath string) error {
@@ -86,6 +101,71 @@ type fakeOpenResty struct {
 	lastSpec               services.WebsiteSpec
 	lastConfig             string
 	lastCertificate        services.CertificateSpec
+}
+
+type fakeDockerReader struct {
+	startCalls       int
+	stopCalls        int
+	restartCalls     int
+	deleteCalls      int
+	removeImageCalls int
+	pruneImageCalls  int
+	lastID           string
+}
+
+func (f *fakeDockerReader) ListContainers(_ context.Context) ([]services.DockerContainer, error) {
+	return nil, nil
+}
+
+func (f *fakeDockerReader) ListImages(_ context.Context) ([]services.DockerImage, error) {
+	return nil, nil
+}
+
+func (f *fakeDockerReader) ListNetworks(_ context.Context) ([]services.DockerNetwork, error) {
+	return nil, nil
+}
+
+func (f *fakeDockerReader) GetSystemInfo(_ context.Context) (services.DockerSystemInfo, error) {
+	return services.DockerSystemInfo{}, nil
+}
+
+func (f *fakeDockerReader) ContainerLogs(_ context.Context, _ string, _ int) (string, error) {
+	return "", nil
+}
+
+func (f *fakeDockerReader) StartContainer(_ context.Context, containerID string) error {
+	f.startCalls++
+	f.lastID = containerID
+	return nil
+}
+
+func (f *fakeDockerReader) StopContainer(_ context.Context, containerID string) error {
+	f.stopCalls++
+	f.lastID = containerID
+	return nil
+}
+
+func (f *fakeDockerReader) RestartContainer(_ context.Context, containerID string) error {
+	f.restartCalls++
+	f.lastID = containerID
+	return nil
+}
+
+func (f *fakeDockerReader) DeleteContainer(_ context.Context, containerID string) error {
+	f.deleteCalls++
+	f.lastID = containerID
+	return nil
+}
+
+func (f *fakeDockerReader) RemoveImage(_ context.Context, imageID string) error {
+	f.removeImageCalls++
+	f.lastID = imageID
+	return nil
+}
+
+func (f *fakeDockerReader) PruneUnusedImages(_ context.Context) (services.DockerImagePruneResult, error) {
+	f.pruneImageCalls++
+	return services.DockerImagePruneResult{ImagesDeleted: 2, SpaceReclaimed: 1024}, nil
 }
 
 func (f *fakeOpenResty) Status(_ context.Context) services.OpenRestyStatus {
@@ -196,8 +276,29 @@ func TestCreateProjectLifecycle(t *testing.T) {
 	if executor.deployCalls != 1 {
 		t.Fatalf("expected deploy call once, got %d", executor.deployCalls)
 	}
+	if executor.ensureNetworkCalls != 1 {
+		t.Fatalf("expected ensure network call once, got %d", executor.ensureNetworkCalls)
+	}
+	if executor.lastNetworkName != "camopanel" {
+		t.Fatalf("expected bridge network camopanel, got %s", executor.lastNetworkName)
+	}
+	if executor.lastNetworkDriver != "bridge" {
+		t.Fatalf("expected bridge network driver, got %s", executor.lastNetworkDriver)
+	}
 	if project.Name != "demo-stack" {
 		t.Fatalf("expected project demo-stack, got %s", project.Name)
+	}
+
+	rendered, err := os.ReadFile(executor.lastCompose)
+	if err != nil {
+		t.Fatalf("read compose: %v", err)
+	}
+	content := string(rendered)
+	if !strings.Contains(content, `name: "camopanel"`) {
+		t.Fatalf("expected rendered compose to include bridge network, got %s", content)
+	}
+	if !strings.Contains(content, `- "demo-stack"`) {
+		t.Fatalf("expected rendered compose to include project alias, got %s", content)
 	}
 
 	var count int64
@@ -206,6 +307,35 @@ func TestCreateProjectLifecycle(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 project, got %d", count)
+	}
+}
+
+func TestCreateCustomProjectLifecycle(t *testing.T) {
+	instance := newTestApp(t)
+	executor := &fakeExecutor{runtimeStatus: "running"}
+	instance.executor = executor
+
+	project, err := instance.createCustomProject(context.Background(), "tester", createCustomProjectRequest{
+		Name:    "custom-blog",
+		Compose: "services:\n  app:\n    image: nginx:alpine",
+	})
+	if err != nil {
+		t.Fatalf("create custom project: %v", err)
+	}
+
+	if executor.deployCalls != 1 {
+		t.Fatalf("expected deploy call once, got %d", executor.deployCalls)
+	}
+	if project.TemplateID != customComposeTemplateID {
+		t.Fatalf("expected template id %s, got %s", customComposeTemplateID, project.TemplateID)
+	}
+
+	rendered, err := os.ReadFile(executor.lastCompose)
+	if err != nil {
+		t.Fatalf("read compose: %v", err)
+	}
+	if string(rendered) != "services:\n  app:\n    image: nginx:alpine\n" {
+		t.Fatalf("unexpected custom compose content: %s", string(rendered))
 	}
 }
 
@@ -435,6 +565,152 @@ func TestDeleteWebsiteLifecycle(t *testing.T) {
 	}
 }
 
+func TestCopilotProviderAndModelLifecycle(t *testing.T) {
+	instance := newTestApp(t)
+
+	provider, err := instance.createCopilotProvider("tester", createCopilotProviderRequest{
+		Name:    "OpenAI",
+		Type:    "openai",
+		BaseURL: "https://api.example.com/v1",
+		APIKey:  "secret-key",
+		Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	if provider.APIKeyMasked == "" {
+		t.Fatalf("expected masked api key")
+	}
+
+	providerModel, err := instance.findCopilotProvider(provider.ID)
+	if err != nil {
+		t.Fatalf("find provider: %v", err)
+	}
+
+	aiModel, err := instance.createCopilotModel("tester", providerModel, createCopilotModelRequest{
+		Name:      "gpt-5",
+		Enabled:   true,
+		IsDefault: true,
+	})
+	if err != nil {
+		t.Fatalf("create model: %v", err)
+	}
+	if !aiModel.IsDefault {
+		t.Fatalf("expected model to be default")
+	}
+
+	items, err := instance.listCopilotProviderResponses()
+	if err != nil {
+		t.Fatalf("list providers: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 provider, got %d", len(items))
+	}
+	if len(items[0].Models) != 1 {
+		t.Fatalf("expected 1 model, got %d", len(items[0].Models))
+	}
+
+	runtimeConfig, err := instance.ResolveCopilotRuntimeConfig(context.Background())
+	if err != nil {
+		t.Fatalf("resolve copilot runtime config: %v", err)
+	}
+	if runtimeConfig.Source != "database" {
+		t.Fatalf("expected source database, got %s", runtimeConfig.Source)
+	}
+	if runtimeConfig.Model != "gpt-5" {
+		t.Fatalf("expected model gpt-5, got %s", runtimeConfig.Model)
+	}
+	if runtimeConfig.ProviderName != "OpenAI" {
+		t.Fatalf("expected provider OpenAI, got %s", runtimeConfig.ProviderName)
+	}
+}
+
+func TestCopilotConfigStatusFallsBackToEnv(t *testing.T) {
+	instance := newTestApp(t)
+	instance.cfg.AI.BaseURL = "https://env.example.com/v1"
+	instance.cfg.AI.Model = "gpt-env"
+	instance.cfg.AI.APIKey = "env-secret"
+
+	status, err := instance.copilotConfigStatus(context.Background())
+	if err != nil {
+		t.Fatalf("copilot config status: %v", err)
+	}
+	if !status.Configured {
+		t.Fatalf("expected configured status")
+	}
+	if status.Source != "env" {
+		t.Fatalf("expected source env, got %s", status.Source)
+	}
+	if status.ModelName != "gpt-env" {
+		t.Fatalf("expected model gpt-env, got %s", status.ModelName)
+	}
+}
+
+func TestHandleDockerContainerActionStart(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	instance := newTestApp(t)
+	docker := &fakeDockerReader{}
+	instance.docker = docker
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/docker/containers/demo/actions", bytes.NewBufferString(`{"action":"start"}`))
+	ctx.Params = gin.Params{{Key: "id", Value: "demo"}}
+
+	instance.handleDockerContainerAction(ctx)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if docker.startCalls != 1 {
+		t.Fatalf("expected start call once, got %d", docker.startCalls)
+	}
+	if docker.lastID != "demo" {
+		t.Fatalf("expected container id demo, got %s", docker.lastID)
+	}
+}
+
+func TestHandleDockerContainerActionDelete(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	instance := newTestApp(t)
+	docker := &fakeDockerReader{}
+	instance.docker = docker
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/docker/containers/demo/actions", bytes.NewBufferString(`{"action":"delete"}`))
+	ctx.Params = gin.Params{{Key: "id", Value: "demo"}}
+
+	instance.handleDockerContainerAction(ctx)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if docker.deleteCalls != 1 {
+		t.Fatalf("expected delete call once, got %d", docker.deleteCalls)
+	}
+}
+
+func TestHandleDockerContainerActionRejectsUnsupportedAction(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	instance := newTestApp(t)
+	instance.docker = &fakeDockerReader{}
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/docker/containers/demo/actions", bytes.NewBufferString(`{"action":"redeploy"}`))
+	ctx.Params = gin.Params{{Key: "id", Value: "demo"}}
+
+	instance.handleDockerContainerAction(ctx)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
 	instance := newTestApp(t)
 	executor := &fakeExecutor{runtimeStatus: "running"}
@@ -466,6 +742,9 @@ func TestManagedOpenRestyDeployUsesFixedProjectAndRuntimePaths(t *testing.T) {
 	content := string(rendered)
 	if !strings.Contains(content, "container_name: camopanel-openresty") {
 		t.Fatalf("expected fixed container name, got %s", content)
+	}
+	if executor.ensureNetworkCalls != 0 {
+		t.Fatalf("expected managed openresty to skip bridge network ensure, got %d", executor.ensureNetworkCalls)
 	}
 	if !strings.Contains(content, "network_mode: host") {
 		t.Fatalf("expected host network mode, got %s", content)
@@ -574,10 +853,18 @@ params:
 `, `services:
   app:
     image: nginx
+    networks:
+      camopanel:
+        aliases:
+          - "{{ .Runtime.ProjectName }}"
     ports:
       - "{{ .Values.port }}:80"
     environment:
       PASSWORD: {{ .Values.password }}
+networks:
+  camopanel:
+    external: true
+    name: "{{ .Runtime.BridgeNetworkName }}"
 `)
 	writeTemplate(t, templatesDir, managedOpenRestyTemplateID, `id: openresty
 name: OpenResty
@@ -606,6 +893,8 @@ params: []
 		CookieName:         "test-cookie",
 		AdminUsername:      "admin",
 		AdminPassword:      "admin123",
+		BridgeNetworkName:  "camopanel",
+		HostControlHelper:  "/usr/local/bin/camopanel-hostctl",
 		OpenRestyContainer: "camopanel-openresty",
 		OpenRestyDataDir:   filepath.Join(root, "openresty"),
 	}

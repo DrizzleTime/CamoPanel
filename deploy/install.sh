@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_PACKAGE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_ENV_FILE="/etc/camopanel/camopanel.env"
 DEFAULT_SERVICE_FILE="/etc/systemd/system/camopanel.service"
+DEFAULT_HOSTCTL_PATH="/usr/local/bin/camopanel-hostctl"
+DEFAULT_SUDOERS_FILE="/etc/sudoers.d/camopanel-hostctl"
 DOCKER_INSTALL_URL="https://get.docker.com"
 
 PACKAGE_SOURCE=""
@@ -571,14 +573,18 @@ BINARY_SOURCE="$PACKAGE_DIR/camopanel"
 TEMPLATES_SOURCE="$PACKAGE_DIR/templates"
 SERVICE_SOURCE="$PACKAGE_DIR/deploy/camopanel.service"
 ENV_EXAMPLE_SOURCE="$PACKAGE_DIR/deploy/camopanel.env.example"
+HOSTCTL_SOURCE="$PACKAGE_DIR/deploy/camopanel-hostctl"
 BIN_PATH="$BIN_DIR/camopanel"
 TEMPLATES_TARGET="$DATA_DIR/templates"
 SERVICE_UNIT=$(basename "$SERVICE_FILE")
+HOSTCTL_PATH="$DEFAULT_HOSTCTL_PATH"
+SUDOERS_FILE="$DEFAULT_SUDOERS_FILE"
 
 [ -f "$BINARY_SOURCE" ] || fail "未找到二进制: $BINARY_SOURCE"
 [ -d "$TEMPLATES_SOURCE" ] || fail "未找到模板目录: $TEMPLATES_SOURCE"
 [ -f "$SERVICE_SOURCE" ] || fail "未找到 service 文件: $SERVICE_SOURCE"
 [ -f "$ENV_EXAMPLE_SOURCE" ] || fail "未找到环境变量模板: $ENV_EXAMPLE_SOURCE"
+[ -f "$HOSTCTL_SOURCE" ] || fail "未找到 hostctl 脚本: $HOSTCTL_SOURCE"
 
 ensure_runtime_account
 ensure_docker_group_access
@@ -592,6 +598,7 @@ mkdir -p "$(dirname "$ENV_FILE")"
 mkdir -p "$(dirname "$SERVICE_FILE")"
 
 install -m 755 "$BINARY_SOURCE" "$BIN_PATH"
+install -m 755 "$HOSTCTL_SOURCE" "$HOSTCTL_PATH"
 cp -R "$TEMPLATES_SOURCE"/. "$TEMPLATES_TARGET"/
 render_service_file "$SERVICE_SOURCE" "$SERVICE_FILE" "$BIN_PATH"
 render_env_example "$ENV_EXAMPLE_SOURCE" "${ENV_FILE}.example"
@@ -607,6 +614,16 @@ fi
 
 if [ "$EUID" -eq 0 ]; then
   chown -R "$RUN_USER:$RUN_GROUP" "$DATA_DIR"
+  chown root:root "$HOSTCTL_PATH"
+fi
+
+if [ "$EUID" -eq 0 ]; then
+  if command -v sudo >/dev/null 2>&1 && [ -d "$(dirname "$SUDOERS_FILE")" ]; then
+    printf '%s ALL=(root) NOPASSWD: %s\n' "$RUN_USER" "$HOSTCTL_PATH" > "$SUDOERS_FILE"
+    chmod 440 "$SUDOERS_FILE"
+  else
+    log "未检测到 sudo，Docker 重启和镜像源管理功能将不可用"
+  fi
 fi
 
 if [ "$NO_START" -eq 0 ]; then

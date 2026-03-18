@@ -21,6 +21,7 @@ import (
 
 var ErrDockerUnavailable = errors.New("docker is unavailable")
 var ErrContainerNotFound = errors.New("container not found")
+var ErrImageNotFound = errors.New("image not found")
 
 type ProjectContainer struct {
 	ID     string   `json:"id"`
@@ -75,6 +76,11 @@ type DockerImage struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type DockerImagePruneResult struct {
+	ImagesDeleted  int    `json:"images_deleted"`
+	SpaceReclaimed uint64 `json:"space_reclaimed"`
+}
+
 type DockerNetwork struct {
 	ID             string    `json:"id"`
 	Name           string    `json:"name"`
@@ -119,9 +125,16 @@ type DockerReader interface {
 	ListNetworks(ctx context.Context) ([]DockerNetwork, error)
 	GetSystemInfo(ctx context.Context) (DockerSystemInfo, error)
 	ContainerLogs(ctx context.Context, containerID string, tail int) (string, error)
+	StartContainer(ctx context.Context, containerID string) error
+	StopContainer(ctx context.Context, containerID string) error
+	RestartContainer(ctx context.Context, containerID string) error
+	DeleteContainer(ctx context.Context, containerID string) error
+	RemoveImage(ctx context.Context, imageID string) error
+	PruneUnusedImages(ctx context.Context) (DockerImagePruneResult, error)
 }
 
 type Executor interface {
+	EnsureNetwork(ctx context.Context, name, driver string) error
 	Deploy(ctx context.Context, projectName, composePath string) error
 	Start(ctx context.Context, projectName, composePath string) error
 	Stop(ctx context.Context, projectName, composePath string) error
@@ -152,6 +165,32 @@ func NewDockerService() *DockerService {
 
 func (d *DockerService) Deploy(ctx context.Context, projectName, composePath string) error {
 	return d.runCompose(ctx, projectName, composePath, "up", "-d")
+}
+
+func (d *DockerService) EnsureNetwork(ctx context.Context, name, driver string) error {
+	cli, err := d.clientOrErr(ctx)
+	if err != nil {
+		return err
+	}
+
+	items, err := cli.NetworkList(ctx, network.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", "^"+name+"$")),
+	})
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+	for _, item := range items {
+		if item.Name == name {
+			return nil
+		}
+	}
+
+	if _, err := cli.NetworkCreate(ctx, name, network.CreateOptions{
+		Driver: driver,
+	}); err != nil && !errdefs.IsConflict(err) {
+		return fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+	return nil
 }
 
 func (d *DockerService) Start(ctx context.Context, projectName, composePath string) error {
@@ -466,6 +505,103 @@ func (d *DockerService) ContainerLogs(ctx context.Context, containerID string, t
 	var output bytes.Buffer
 	_, _ = stdcopy.StdCopy(&output, &output, reader)
 	return strings.TrimSpace(output.String()), nil
+}
+
+func (d *DockerService) StartContainer(ctx context.Context, containerID string) error {
+	cli, err := d.clientOrErr(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+		if errdefs.IsNotFound(err) {
+			return ErrContainerNotFound
+		}
+		return fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+
+	return nil
+}
+
+func (d *DockerService) StopContainer(ctx context.Context, containerID string) error {
+	cli, err := d.clientOrErr(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := cli.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
+		if errdefs.IsNotFound(err) {
+			return ErrContainerNotFound
+		}
+		return fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+
+	return nil
+}
+
+func (d *DockerService) RestartContainer(ctx context.Context, containerID string) error {
+	cli, err := d.clientOrErr(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := cli.ContainerRestart(ctx, containerID, container.StopOptions{}); err != nil {
+		if errdefs.IsNotFound(err) {
+			return ErrContainerNotFound
+		}
+		return fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+
+	return nil
+}
+
+func (d *DockerService) DeleteContainer(ctx context.Context, containerID string) error {
+	cli, err := d.clientOrErr(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true}); err != nil {
+		if errdefs.IsNotFound(err) {
+			return ErrContainerNotFound
+		}
+		return fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+
+	return nil
+}
+
+func (d *DockerService) RemoveImage(ctx context.Context, imageID string) error {
+	cli, err := d.clientOrErr(ctx)
+	if err != nil {
+		return err
+	}
+
+	if _, err := cli.ImageRemove(ctx, imageID, image.RemoveOptions{Force: false, PruneChildren: true}); err != nil {
+		if errdefs.IsNotFound(err) {
+			return ErrImageNotFound
+		}
+		return fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+
+	return nil
+}
+
+func (d *DockerService) PruneUnusedImages(ctx context.Context) (DockerImagePruneResult, error) {
+	cli, err := d.clientOrErr(ctx)
+	if err != nil {
+		return DockerImagePruneResult{}, err
+	}
+
+	report, err := cli.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "false")))
+	if err != nil {
+		return DockerImagePruneResult{}, fmt.Errorf("%w: %v", ErrDockerUnavailable, err)
+	}
+
+	return DockerImagePruneResult{
+		ImagesDeleted:  len(report.ImagesDeleted),
+		SpaceReclaimed: report.SpaceReclaimed,
+	}, nil
 }
 
 func (d *DockerService) InspectContainer(ctx context.Context, containerName string) (ContainerStatus, error) {

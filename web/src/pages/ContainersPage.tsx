@@ -3,6 +3,7 @@ import {
   EyeOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
+  PlusOutlined,
   ReloadOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
@@ -13,6 +14,10 @@ import {
   Descriptions,
   Drawer,
   Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
   Space,
   Table,
   Tag,
@@ -25,7 +30,9 @@ import { apiRequest, bytesToSize } from "../lib/api";
 import type {
   DockerContainer,
   DockerImage,
+  DockerImagePruneResult,
   DockerNetwork,
+  DockerSettings,
   DockerSystemInfo,
   Project,
 } from "../lib/types";
@@ -36,6 +43,7 @@ type LoadingState = {
   projects: boolean;
   networks: boolean;
   system: boolean;
+  dockerSettings: boolean;
 };
 
 type ErrorState = {
@@ -44,6 +52,7 @@ type ErrorState = {
   projects?: string;
   networks?: string;
   system?: string;
+  dockerSettings?: string;
 };
 
 const initialLoadingState: LoadingState = {
@@ -52,6 +61,12 @@ const initialLoadingState: LoadingState = {
   projects: true,
   networks: true,
   system: true,
+  dockerSettings: true,
+};
+
+type CustomComposeValues = {
+  name: string;
+  compose: string;
 };
 
 const CONTAINER_TAB_LABELS = {
@@ -71,12 +86,20 @@ export function ContainersPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [networks, setNetworks] = useState<DockerNetwork[]>([]);
   const [systemInfo, setSystemInfo] = useState<DockerSystemInfo | null>(null);
+  const [dockerSettings, setDockerSettings] = useState<DockerSettings | null>(null);
   const [activeContainer, setActiveContainer] = useState<DockerContainer | null>(null);
   const [containerLogs, setContainerLogs] = useState("");
   const [containerLogsLoading, setContainerLogsLoading] = useState(false);
+  const [containerActionKey, setContainerActionKey] = useState<string | null>(null);
+  const [imageActionKey, setImageActionKey] = useState<string | null>(null);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [projectLogs, setProjectLogs] = useState("");
   const [projectLogsLoading, setProjectLogsLoading] = useState(false);
+  const [customComposeOpen, setCustomComposeOpen] = useState(false);
+  const [customComposeSubmitting, setCustomComposeSubmitting] = useState(false);
+  const [dockerSettingsSubmitting, setDockerSettingsSubmitting] = useState(false);
+  const [dockerRestarting, setDockerRestarting] = useState(false);
+  const [customComposeForm] = Form.useForm<CustomComposeValues>();
 
   const updateLoading = (key: keyof LoadingState, value: boolean) => {
     setLoading((state) => ({ ...state, [key]: value }));
@@ -92,8 +115,10 @@ export function ContainersPage() {
       const response = await apiRequest<{ items: DockerContainer[] }>("/api/docker/containers");
       setContainers(response.items);
       updateError("containers", undefined);
+      return response.items;
     } catch (error) {
       updateError("containers", error instanceof Error ? error.message : "加载容器失败");
+      return [];
     } finally {
       updateLoading("containers", false);
     }
@@ -152,6 +177,20 @@ export function ContainersPage() {
     }
   };
 
+  const loadDockerSettings = async () => {
+    updateLoading("dockerSettings", true);
+    try {
+      const response = await apiRequest<DockerSettings>("/api/docker/settings");
+      setDockerSettings(response);
+      updateError("dockerSettings", undefined);
+    } catch (error) {
+      setDockerSettings(null);
+      updateError("dockerSettings", error instanceof Error ? error.message : "加载 Docker 设置失败");
+    } finally {
+      updateLoading("dockerSettings", false);
+    }
+  };
+
   const loadAll = async () => {
     await Promise.allSettled([
       loadContainers(),
@@ -159,6 +198,7 @@ export function ContainersPage() {
       loadProjects(),
       loadNetworks(),
       loadSystemInfo(),
+      loadDockerSettings(),
     ]);
   };
 
@@ -194,17 +234,137 @@ export function ContainersPage() {
   useShellHeader(headerContent);
 
   const runProjectAction = async (project: Project, action: string) => {
-    await apiRequest(`/api/projects/${project.id}/actions`, {
-      method: "POST",
-      body: JSON.stringify({ action }),
-    });
-    message.success(`${actionLabel(action)}已执行`);
-    await Promise.allSettled([loadProjects(), loadContainers(), loadSystemInfo()]);
-    if (activeProject?.id === project.id && action !== "delete") {
-      await openProjectDetails(project);
+    try {
+      await apiRequest(`/api/projects/${project.id}/actions`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      });
+      message.success(`${actionLabel(action)}已执行`);
+      await Promise.allSettled([loadProjects(), loadContainers(), loadSystemInfo()]);
+      if (activeProject?.id === project.id && action !== "delete") {
+        await openProjectDetails(project);
+      }
+      if (action === "delete") {
+        setActiveProject(null);
+      }
+    } catch (error) {
+      message.error(getErrorMessage(error));
     }
-    if (action === "delete") {
-      setActiveProject(null);
+  };
+
+  const removeImage = async (image: DockerImage) => {
+    const actionKey = `${image.id}:delete`;
+    setImageActionKey(actionKey);
+    try {
+      await apiRequest(`/api/docker/images/${encodeURIComponent(image.id)}`, {
+        method: "DELETE",
+      });
+      message.success("镜像已删除");
+      await Promise.allSettled([loadImages(), loadSystemInfo()]);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setImageActionKey(null);
+    }
+  };
+
+  const pruneImages = async () => {
+    setImageActionKey("prune");
+    try {
+      const result = await apiRequest<DockerImagePruneResult>("/api/docker/images/prune", {
+        method: "POST",
+      });
+      message.success(`已清理 ${result.images_deleted} 个未使用镜像，回收 ${bytesToSize(result.space_reclaimed)}`);
+      await Promise.allSettled([loadImages(), loadSystemInfo()]);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setImageActionKey(null);
+    }
+  };
+
+  const submitCustomCompose = async (values: CustomComposeValues) => {
+    setCustomComposeSubmitting(true);
+    try {
+      await apiRequest<{ project: Project }>("/api/projects/custom", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+      message.success("编排已创建");
+      setCustomComposeOpen(false);
+      customComposeForm.resetFields();
+      await Promise.allSettled([loadProjects(), loadContainers(), loadSystemInfo()]);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setCustomComposeSubmitting(false);
+    }
+  };
+
+  const saveDockerSettings = async () => {
+    const mirrors = dockerSettingsTextToList(dockerSettings?.registry_mirrors ?? []);
+    setDockerSettingsSubmitting(true);
+    try {
+      const response = await apiRequest<DockerSettings>("/api/docker/settings", {
+        method: "PUT",
+        body: JSON.stringify({ registry_mirrors: mirrors }),
+      });
+      setDockerSettings(response);
+      message.success("镜像源配置已保存");
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setDockerSettingsSubmitting(false);
+    }
+  };
+
+  const restartDocker = async () => {
+    setDockerRestarting(true);
+    try {
+      await apiRequest<{ ok: boolean }>("/api/docker/restart", {
+        method: "POST",
+      });
+      message.success("Docker 已重启");
+      await Promise.allSettled([loadSystemInfo(), loadDockerSettings(), loadContainers(), loadImages(), loadProjects()]);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setDockerRestarting(false);
+    }
+  };
+
+  const runContainerAction = async (container: DockerContainer, action: string) => {
+    const actionKey = `${container.id}:${action}`;
+    setContainerActionKey(actionKey);
+    try {
+      await apiRequest(`/api/docker/containers/${container.id}/actions`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      });
+      message.success(`容器已${actionLabel(action)}`);
+      const nextContainers = await loadContainers();
+      await Promise.allSettled([loadProjects(), loadSystemInfo()]);
+
+      if (activeContainer?.id !== container.id) {
+        return;
+      }
+
+      if (action === "delete") {
+        setActiveContainer(null);
+        return;
+      }
+
+      const updatedContainer = nextContainers.find((item) => item.id === container.id);
+      if (!updatedContainer) {
+        setActiveContainer(null);
+        return;
+      }
+
+      await openContainerLogs(updatedContainer);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setContainerActionKey(null);
     }
   };
 
@@ -290,9 +450,46 @@ export function ContainersPage() {
                 {
                   title: "动作",
                   render: (_, record) => (
-                    <Button size="small" icon={<EyeOutlined />} onClick={() => void openContainerLogs(record)}>
-                      日志
-                    </Button>
+                    <Space wrap>
+                      <Button
+                        size="small"
+                        icon={<PlayCircleOutlined />}
+                        disabled={record.state === "running" || containerActionKey !== null}
+                        loading={containerActionKey === `${record.id}:start`}
+                        onClick={() => void runContainerAction(record, "start")}
+                      />
+                      <Button
+                        size="small"
+                        icon={<PauseCircleOutlined />}
+                        disabled={isContainerStopped(record.state) || containerActionKey !== null}
+                        loading={containerActionKey === `${record.id}:stop`}
+                        onClick={() => void runContainerAction(record, "stop")}
+                      />
+                      <Button
+                        size="small"
+                        icon={<SyncOutlined />}
+                        disabled={containerActionKey !== null}
+                        loading={containerActionKey === `${record.id}:restart`}
+                        onClick={() => void runContainerAction(record, "restart")}
+                      />
+                      <Button size="small" icon={<EyeOutlined />} onClick={() => void openContainerLogs(record)}>
+                        日志
+                      </Button>
+                      <Popconfirm
+                        title={`确认删除容器 ${record.name}？`}
+                        description={
+                          record.project
+                            ? `该容器属于编排 ${record.project}，删除后项目可能进入降级状态。`
+                            : "删除后无法恢复。"
+                        }
+                        okText="删除"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true, loading: containerActionKey === `${record.id}:delete` }}
+                        onConfirm={() => void runContainerAction(record, "delete")}
+                      >
+                        <Button danger size="small" icon={<DeleteOutlined />} disabled={containerActionKey !== null} />
+                      </Popconfirm>
+                    </Space>
                   ),
                 },
               ]}
@@ -307,6 +504,23 @@ export function ContainersPage() {
       children: (
         <div className="containers-tab-stack">
           {renderError(errors.images)}
+          <div className="page-inline-bar">
+            <Typography.Text type="secondary">
+              支持删除单个镜像，或一键清理所有未被容器使用的镜像。
+            </Typography.Text>
+            <Popconfirm
+              title="确认清理所有未使用镜像？"
+              description="只会清理当前没有被容器使用的镜像。"
+              okText="立即清理"
+              cancelText="取消"
+              okButtonProps={{ danger: true, loading: imageActionKey === "prune" }}
+              onConfirm={() => void pruneImages()}
+            >
+              <Button danger loading={imageActionKey === "prune"}>
+                清理未使用镜像
+              </Button>
+            </Popconfirm>
+          </div>
           <Card className="glass-card">
             <Table<DockerImage>
               rowKey="id"
@@ -339,6 +553,28 @@ export function ContainersPage() {
                   dataIndex: "created_at",
                   render: (value: string) => formatDateTime(value),
                 },
+                {
+                  title: "动作",
+                  render: (_, record) => (
+                    <Popconfirm
+                      title="确认删除这个镜像？"
+                      description="如果仍有容器在使用，Docker 会拒绝删除。"
+                      okText="删除"
+                      cancelText="取消"
+                      okButtonProps={{ danger: true, loading: imageActionKey === `${record.id}:delete` }}
+                      onConfirm={() => void removeImage(record)}
+                    >
+                      <Button
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        disabled={imageActionKey !== null}
+                      >
+                        删除
+                      </Button>
+                    </Popconfirm>
+                  ),
+                },
               ]}
             />
           </Card>
@@ -354,8 +590,16 @@ export function ContainersPage() {
           <Alert
             showIcon
             type="info"
-            message="这里可以直接执行项目的启动、停止、重启、删除和重新部署。"
+            message="这里可以管理现有编排，也可以直接粘贴 compose.yaml 新建自定义编排。"
           />
+          <div className="page-inline-bar">
+            <Typography.Text type="secondary">
+              自定义编排会直接保存原始 compose 内容，不走模板参数化。
+            </Typography.Text>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCustomComposeOpen(true)}>
+              新建编排
+            </Button>
+          </div>
           <Card className="glass-card">
             <Table<Project>
               rowKey="id"
@@ -471,8 +715,13 @@ export function ContainersPage() {
       label: "系统设置",
       children: (
         <div className="containers-tab-stack">
-          <Alert showIcon type="info" message="系统设置当前只读，先用于查看 Docker 守护进程和宿主机侧的关键状态。" />
+          <Alert
+            showIcon
+            type="info"
+            message="这里可以查看 Docker 系统信息，并维护 daemon 的 registry-mirrors 与重启 Docker。"
+          />
           {renderError(errors.system)}
+          {renderError(errors.dockerSettings)}
           <div className="containers-summary-grid">
             <Card className="glass-card">
               <Typography.Text type="secondary">容器总数</Typography.Text>
@@ -538,6 +787,69 @@ export function ContainersPage() {
             )}
           </Card>
 
+          <Card
+            className="glass-card"
+            title="Docker 镜像源"
+            loading={loading.dockerSettings}
+            extra={
+              <Space>
+                <Button
+                  onClick={() => void saveDockerSettings()}
+                  loading={dockerSettingsSubmitting}
+                  disabled={!dockerSettings?.control_enabled}
+                >
+                  保存镜像源
+                </Button>
+                <Popconfirm
+                  title="确认重启 Docker？"
+                  description="会短暂影响容器管理和镜像拉取。"
+                  okText="立即重启"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true, loading: dockerRestarting }}
+                  onConfirm={() => void restartDocker()}
+                >
+                  <Button danger loading={dockerRestarting} disabled={!dockerSettings?.control_enabled}>
+                    重启 Docker
+                  </Button>
+                </Popconfirm>
+              </Space>
+            }
+          >
+            {dockerSettings ? (
+              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                <Typography.Text type="secondary">{dockerSettings.message || "一行一个镜像源 URL。"}</Typography.Text>
+                <Descriptions bordered size="small" column={1}>
+                  <Descriptions.Item label="配置文件">{dockerSettings.config_path}</Descriptions.Item>
+                  <Descriptions.Item label="宿主机控制">
+                    {dockerSettings.control_enabled ? (
+                      <Tag color="green">已启用</Tag>
+                    ) : (
+                      <Tag color="red">未启用</Tag>
+                    )}
+                  </Descriptions.Item>
+                </Descriptions>
+                <Input.TextArea
+                  rows={6}
+                  value={dockerSettings.registry_mirrors.join("\n")}
+                  onChange={(event) =>
+                    setDockerSettings((current) =>
+                      current
+                        ? {
+                            ...current,
+                            registry_mirrors: dockerSettingsTextToList(event.target.value.split("\n")),
+                          }
+                        : current,
+                    )
+                  }
+                  placeholder={"https://mirror-1.example\nhttps://mirror-2.example"}
+                  disabled={!dockerSettings.control_enabled}
+                />
+              </Space>
+            ) : (
+              <Empty description="当前无法读取 Docker daemon 设置" />
+            )}
+          </Card>
+
           {systemInfo?.warnings.length ? (
             <Card className="glass-card" title="Docker 警告">
               <div className="containers-warning-list">
@@ -566,6 +878,44 @@ export function ContainersPage() {
       </div>
 
       {activeTabContent}
+
+      <Modal
+        open={customComposeOpen}
+        title="新建编排"
+        okText="立即创建"
+        cancelText="取消"
+        onCancel={() => {
+          setCustomComposeOpen(false);
+          customComposeForm.resetFields();
+        }}
+        onOk={() => void customComposeForm.submit()}
+        confirmLoading={customComposeSubmitting}
+        destroyOnClose
+      >
+        <Form
+          form={customComposeForm}
+          layout="vertical"
+          initialValues={{ name: "", compose: "services:\n  app:\n    image: nginx:alpine\n" }}
+          onFinish={submitCustomCompose}
+        >
+          <Form.Item
+            label="编排名"
+            name="name"
+            rules={[{ required: true, message: "请输入编排名" }]}
+            extra="只允许小写字母、数字、下划线和中划线。"
+          >
+            <Input placeholder="custom-blog" />
+          </Form.Item>
+          <Form.Item
+            label="Compose"
+            name="compose"
+            rules={[{ required: true, message: "请输入 Compose 内容" }]}
+            extra="直接填写 compose.yaml 原文。"
+          >
+            <Input.TextArea rows={12} spellCheck={false} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Drawer
         open={!!activeContainer}
@@ -725,6 +1075,22 @@ function actionLabel(action: string) {
   }
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "操作失败";
+}
+
+function isContainerStopped(state?: string) {
+  switch (state) {
+    case "created":
+    case "dead":
+    case "exited":
+    case "removing":
+      return true;
+    default:
+      return false;
+  }
+}
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("zh-CN", {
     hour12: false,
@@ -738,4 +1104,8 @@ function formatDateTime(value: string) {
 
 function shortId(value: string) {
   return value.length > 12 ? value.slice(0, 12) : value;
+}
+
+function dockerSettingsTextToList(values: string[]) {
+  return values.map((item) => item.trim()).filter(Boolean);
 }

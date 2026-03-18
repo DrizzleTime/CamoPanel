@@ -15,16 +15,17 @@ import (
 )
 
 type App struct {
-	cfg        config.Config
-	db         *gorm.DB
-	auth       *services.AuthService
-	templates  *services.TemplateCatalog
-	executor   services.Executor
-	docker     services.DockerReader
-	containers services.ContainerOperator
-	host       *services.HostService
-	openresty  services.OpenRestyManager
-	copilot    *services.CopilotService
+	cfg         config.Config
+	db          *gorm.DB
+	auth        *services.AuthService
+	templates   *services.TemplateCatalog
+	executor    services.Executor
+	docker      services.DockerReader
+	containers  services.ContainerOperator
+	host        *services.HostService
+	hostControl *services.HostControlService
+	openresty   services.OpenRestyManager
+	copilot     *services.CopilotService
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -37,7 +38,7 @@ func New(cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Certificate{}, &model.AuditEvent{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Project{}, &model.Certificate{}, &model.AuditEvent{}, &model.AIProvider{}, &model.AIModel{}); err != nil {
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
 	if err := cleanupLegacyApprovalData(db); err != nil {
@@ -57,17 +58,18 @@ func New(cfg config.Config) (*App, error) {
 	dockerService := services.NewDockerService()
 
 	instance := &App{
-		cfg:        cfg,
-		db:         db,
-		auth:       auth,
-		templates:  catalog,
-		executor:   dockerService,
-		docker:     dockerService,
-		containers: dockerService,
-		host:       services.NewHostService(cfg.DataDir),
-		openresty:  services.NewOpenRestyService(dockerService, cfg.OpenRestyContainer, cfg.OpenRestyDataDir),
+		cfg:         cfg,
+		db:          db,
+		auth:        auth,
+		templates:   catalog,
+		executor:    dockerService,
+		docker:      dockerService,
+		containers:  dockerService,
+		host:        services.NewHostService(cfg.DataDir),
+		hostControl: services.NewHostControlService(cfg.HostControlHelper),
+		openresty:   services.NewOpenRestyService(dockerService, cfg.OpenRestyContainer, cfg.OpenRestyDataDir),
 	}
-	instance.copilot = services.NewCopilotService(cfg.AI, instance)
+	instance.copilot = services.NewCopilotService(cfg.AI, instance, instance)
 
 	return instance, nil
 }
@@ -95,11 +97,18 @@ func (a *App) router() *gin.Engine {
 		api.GET("/openresty/status", a.handleOpenRestyStatus)
 		api.GET("/projects", a.handleProjects)
 		api.POST("/projects", a.handleCreateProject)
+		api.POST("/projects/custom", a.handleCreateCustomProject)
 		api.GET("/docker/containers", a.handleDockerContainers)
 		api.GET("/docker/containers/:id/logs", a.handleDockerContainerLogs)
+		api.POST("/docker/containers/:id/actions", a.handleDockerContainerAction)
 		api.GET("/docker/images", a.handleDockerImages)
+		api.DELETE("/docker/images/:id", a.handleDockerImageDelete)
+		api.POST("/docker/images/prune", a.handleDockerImagePrune)
 		api.GET("/docker/networks", a.handleDockerNetworks)
 		api.GET("/docker/system", a.handleDockerSystem)
+		api.GET("/docker/settings", a.handleDockerSettings)
+		api.PUT("/docker/settings", a.handleUpdateDockerSettings)
+		api.POST("/docker/restart", a.handleRestartDockerDaemon)
 		api.GET("/websites", a.handleWebsites)
 		api.POST("/websites", a.handleCreateWebsite)
 		api.GET("/certificates", a.handleCertificates)
@@ -125,6 +134,14 @@ func (a *App) router() *gin.Engine {
 		api.GET("/dashboard/stream", a.handleDashboardStream)
 		api.POST("/copilot/sessions", a.handleCreateCopilotSession)
 		api.POST("/copilot/sessions/:id/messages", a.handleCopilotMessage)
+		api.GET("/copilot/config", a.handleCopilotConfig)
+		api.GET("/copilot/providers", a.handleCopilotProviders)
+		api.POST("/copilot/providers", a.handleCreateCopilotProvider)
+		api.PUT("/copilot/providers/:id", a.handleUpdateCopilotProvider)
+		api.DELETE("/copilot/providers/:id", a.handleDeleteCopilotProvider)
+		api.POST("/copilot/providers/:id/models", a.handleCreateCopilotModel)
+		api.PUT("/copilot/models/:id", a.handleUpdateCopilotModel)
+		api.DELETE("/copilot/models/:id", a.handleDeleteCopilotModel)
 		api.GET("/files/list", a.handleFileList)
 		api.GET("/files/read", a.handleFileRead)
 		api.POST("/files/write", a.handleFileWrite)

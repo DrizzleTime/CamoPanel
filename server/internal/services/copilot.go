@@ -31,6 +31,16 @@ type CopilotReply struct {
 	Message string `json:"message"`
 }
 
+type CopilotRuntimeConfig struct {
+	Source       string `json:"source"`
+	ProviderID   string `json:"provider_id,omitempty"`
+	ProviderName string `json:"provider_name,omitempty"`
+	ModelID      string `json:"model_id,omitempty"`
+	Model        string `json:"model"`
+	BaseURL      string `json:"base_url"`
+	APIKey       string `json:"-"`
+}
+
 type ProjectToolData struct {
 	ID              string             `json:"id"`
 	Name            string             `json:"name"`
@@ -50,19 +60,25 @@ type CopilotToolbox interface {
 	GetHostSummary(ctx context.Context) (HostSummary, error)
 }
 
+type CopilotConfigResolver interface {
+	ResolveCopilotRuntimeConfig(ctx context.Context) (CopilotRuntimeConfig, error)
+}
+
 type CopilotService struct {
-	cfg      config.AIConfig
+	fallback config.AIConfig
 	client   *http.Client
 	toolbox  CopilotToolbox
+	resolver CopilotConfigResolver
 	mu       sync.Mutex
 	sessions map[string]*CopilotSession
 }
 
-func NewCopilotService(cfg config.AIConfig, toolbox CopilotToolbox) *CopilotService {
+func NewCopilotService(cfg config.AIConfig, toolbox CopilotToolbox, resolver CopilotConfigResolver) *CopilotService {
 	return &CopilotService{
-		cfg:      cfg,
+		fallback: cfg,
 		client:   &http.Client{},
 		toolbox:  toolbox,
+		resolver: resolver,
 		sessions: map[string]*CopilotSession{},
 	}
 }
@@ -79,7 +95,11 @@ func (s *CopilotService) CreateSession() CopilotSession {
 }
 
 func (s *CopilotService) Reply(ctx context.Context, sessionID, userMessage string) (CopilotReply, error) {
-	if s.cfg.BaseURL == "" || s.cfg.APIKey == "" || s.cfg.Model == "" {
+	runtimeConfig, err := s.runtimeConfig(ctx)
+	if err != nil {
+		return CopilotReply{}, err
+	}
+	if runtimeConfig.BaseURL == "" || runtimeConfig.APIKey == "" || runtimeConfig.Model == "" {
 		return CopilotReply{}, ErrCopilotDisabled
 	}
 
@@ -91,7 +111,7 @@ func (s *CopilotService) Reply(ctx context.Context, sessionID, userMessage strin
 	conversation := append([]SessionMessage{}, session.Messages...)
 	conversation = append(conversation, SessionMessage{Role: "user", Content: userMessage})
 
-	result, history, err := s.runToolLoop(ctx, conversation)
+	result, history, err := s.runToolLoop(ctx, runtimeConfig, conversation)
 	if err != nil {
 		return CopilotReply{}, err
 	}
@@ -113,7 +133,31 @@ func (s *CopilotService) session(sessionID string) (*CopilotSession, error) {
 	return session, nil
 }
 
-func (s *CopilotService) runToolLoop(ctx context.Context, messages []SessionMessage) (CopilotReply, []SessionMessage, error) {
+func (s *CopilotService) runtimeConfig(ctx context.Context) (CopilotRuntimeConfig, error) {
+	if s.resolver != nil {
+		cfg, err := s.resolver.ResolveCopilotRuntimeConfig(ctx)
+		if err != nil {
+			return CopilotRuntimeConfig{}, err
+		}
+		if cfg.BaseURL != "" && cfg.APIKey != "" && cfg.Model != "" {
+			return cfg, nil
+		}
+	}
+
+	if s.fallback.BaseURL == "" || s.fallback.APIKey == "" || s.fallback.Model == "" {
+		return CopilotRuntimeConfig{}, ErrCopilotDisabled
+	}
+
+	return CopilotRuntimeConfig{
+		Source:       "env",
+		ProviderName: "环境变量",
+		Model:        s.fallback.Model,
+		BaseURL:      s.fallback.BaseURL,
+		APIKey:       s.fallback.APIKey,
+	}, nil
+}
+
+func (s *CopilotService) runToolLoop(ctx context.Context, runtimeConfig CopilotRuntimeConfig, messages []SessionMessage) (CopilotReply, []SessionMessage, error) {
 	history := []chatMessage{{Role: "system", Content: systemPrompt}}
 	for _, message := range messages {
 		history = append(history, chatMessage{
@@ -126,7 +170,7 @@ func (s *CopilotService) runToolLoop(ctx context.Context, messages []SessionMess
 
 	var assistantReply string
 	for i := 0; i < 4; i++ {
-		response, err := s.chatCompletion(ctx, history)
+		response, err := s.chatCompletion(ctx, runtimeConfig, history)
 		if err != nil {
 			return CopilotReply{}, nil, err
 		}
@@ -211,9 +255,9 @@ func (s *CopilotService) handleToolCall(ctx context.Context, toolCall chatToolCa
 	}
 }
 
-func (s *CopilotService) chatCompletion(ctx context.Context, messages []chatMessage) (chatCompletionResponse, error) {
+func (s *CopilotService) chatCompletion(ctx context.Context, runtimeConfig CopilotRuntimeConfig, messages []chatMessage) (chatCompletionResponse, error) {
 	body := chatCompletionRequest{
-		Model:       s.cfg.Model,
+		Model:       runtimeConfig.Model,
 		Messages:    messages,
 		Tools:       toolSchemas,
 		Temperature: 0.2,
@@ -224,13 +268,13 @@ func (s *CopilotService) chatCompletion(ctx context.Context, messages []chatMess
 		return chatCompletionResponse{}, err
 	}
 
-	url := strings.TrimRight(s.cfg.BaseURL, "/") + "/chat/completions"
+	url := strings.TrimRight(runtimeConfig.BaseURL, "/") + "/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(rawBody))
 	if err != nil {
 		return chatCompletionResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.cfg.APIKey)
+	req.Header.Set("Authorization", "Bearer "+runtimeConfig.APIKey)
 
 	resp, err := s.client.Do(req)
 	if err != nil {

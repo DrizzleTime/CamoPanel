@@ -82,3 +82,24 @@ type AuditEvent struct {
 	MetadataJSON string    `gorm:"type:text" json:"metadata_json"`
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+type AIProvider struct {
+	ID        string    `gorm:"primaryKey" json:"id"`
+	Name      string    `gorm:"uniqueIndex;not null" json:"name"`
+	Type      string    `gorm:"not null" json:"type"`
+	BaseURL   string    `gorm:"not null" json:"base_url"`
+	APIKey    string    `gorm:"type:text;not null" json:"-"`
+	Enabled   bool      `gorm:"not null" json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AIModel struct {
+	ID         string    `gorm:"primaryKey" json:"id"`
+	ProviderID string    `gorm:"index;not null" json:"provider_id"`
+	Name       string    `gorm:"not null" json:"name"`
+	Enabled    bool      `gorm:"not null" json:"enabled"`
+	IsDefault  bool      `gorm:"not null" json:"is_default"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}

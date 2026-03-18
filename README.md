@@ -49,6 +49,8 @@ env GOPROXY=https://goproxy.cn,direct go run ./cmd/camopanel
 - 数据目录：`./data`
 - 模板目录：优先自动探测 `./templates`，否则回退到 `../templates`
 - OpenResty 容器名：`camopanel-openresty`
+- 共享桥接网络：`camopanel`
+- 宿主机控制 helper：`/usr/local/bin/camopanel-hostctl`
 - OpenResty 数据目录：`${CAMO_DATA_DIR}/openresty`
 - OpenResty 约定挂载：
   - `${CAMO_DATA_DIR}/openresty/conf.d` -> `/etc/nginx/conf.d`
@@ -59,6 +61,8 @@ env GOPROXY=https://goproxy.cn,direct go run ./cmd/camopanel
 创建站点前，面板会检查这个固定容器是否存在、是否运行中、挂载目录是否符合约定。  
 如果不满足条件，站点创建会直接失败，不会尝试自动修复容器。
 固定 OpenResty 模板使用 `host` 网络模式，默认直接监听宿主机端口。部署前请确认宿主机 `80` 端口未被其他服务占用。
+除 `OpenResty` 外，其余应用模板会接入固定的 `bridge` 网络 `camopanel`，同时保留当前宿主机端口映射。
+如果通过安装脚本部署，脚本还会安装 `camopanel-hostctl` 和对应 sudoers，用于 Docker 镜像源管理与重启 Docker。
 
 最小示例：
 
@@ -92,6 +96,8 @@ bun run dev
 - `CAMO_SESSION_SECRET`
 - `CAMO_ADMIN_USERNAME`
 - `CAMO_ADMIN_PASSWORD`
+- `CAMO_BRIDGE_NETWORK`
+- `CAMO_HOST_CONTROL_HELPER`
 - `CAMO_OPENRESTY_CONTAINER`
 - `CAMO_AI_BASE_URL`
 - `CAMO_AI_MODEL`

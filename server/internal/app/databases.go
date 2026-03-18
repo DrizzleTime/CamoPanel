@@ -917,6 +917,11 @@ func (a *App) redeployProjectWithConfig(ctx context.Context, project model.Proje
 		return err
 	}
 
+	if err := a.ensureProjectBridgeNetwork(ctx, project.TemplateID); err != nil {
+		project.LastError = err.Error()
+		_ = a.db.Save(&project).Error
+		return err
+	}
 	if err := a.executor.Redeploy(ctx, project.Name, project.ComposePath); err != nil {
 		project.LastError = err.Error()
 		_ = a.db.Save(&project).Error

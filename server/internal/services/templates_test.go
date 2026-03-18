@@ -91,15 +91,25 @@ func TestTemplateRenderSupportsRuntimeContext(t *testing.T) {
 	item := LoadedTemplate{
 		ComposeTemplate: `services:
   app:
+    networks:
+      camopanel:
+        aliases:
+          - "{{ .Runtime.ProjectName }}"
     container_name: {{ .Runtime.OpenRestyContainer }}
     network_mode: host
     volumes:
       - "{{ .Runtime.OpenRestyHostConfDir }}:/etc/nginx/conf.d"
       - "{{ .Runtime.OpenRestyHostCertDir }}:/etc/camopanel/certs"
+networks:
+  camopanel:
+    external: true
+    name: "{{ .Runtime.BridgeNetworkName }}"
 `,
 	}
 
 	rendered, err := item.Render(map[string]any{}, TemplateRuntime{
+		ProjectName:          "demo-app",
+		BridgeNetworkName:    "camopanel",
 		OpenRestyContainer:   "camopanel-openresty",
 		OpenRestyHostConfDir: "/var/lib/camopanel/openresty/conf.d",
 		OpenRestyHostCertDir: "/var/lib/camopanel/openresty/certs",
@@ -113,6 +123,12 @@ func TestTemplateRenderSupportsRuntimeContext(t *testing.T) {
 	}
 	if !strings.Contains(rendered, "network_mode: host") {
 		t.Fatalf("expected rendered compose to include host network mode, got %s", rendered)
+	}
+	if !strings.Contains(rendered, `- "demo-app"`) {
+		t.Fatalf("expected rendered compose to include project alias, got %s", rendered)
+	}
+	if !strings.Contains(rendered, `name: "camopanel"`) {
+		t.Fatalf("expected rendered compose to include bridge network name, got %s", rendered)
 	}
 	if !strings.Contains(rendered, "/var/lib/camopanel/openresty/conf.d:/etc/nginx/conf.d") {
 		t.Fatalf("expected rendered compose to include conf dir bind, got %s", rendered)

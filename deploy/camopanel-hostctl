@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOCKER_DAEMON_CONFIG="/etc/docker/daemon.json"
+
+usage() {
+  cat <<'EOF' >&2
+用法:
+  camopanel-hostctl docker-settings read
+  camopanel-hostctl docker-settings write
+  camopanel-hostctl docker restart
+EOF
+  exit 2
+}
+
+write_daemon_config() {
+  local dir tmp
+
+  dir=$(dirname "$DOCKER_DAEMON_CONFIG")
+  mkdir -p "$dir"
+  tmp=$(mktemp "$dir/.camopanel-daemon.XXXXXX")
+  trap 'rm -f "$tmp"' EXIT
+  cat >"$tmp"
+  chmod 0644 "$tmp"
+  mv "$tmp" "$DOCKER_DAEMON_CONFIG"
+  trap - EXIT
+}
+
+case "${1-}:${2-}" in
+  docker-settings:read)
+    if [ -f "$DOCKER_DAEMON_CONFIG" ]; then
+      cat "$DOCKER_DAEMON_CONFIG"
+    fi
+    ;;
+  docker-settings:write)
+    write_daemon_config
+    ;;
+  docker:restart)
+    systemctl restart docker
+    ;;
+  *)
+    usage
+    ;;
+esac
