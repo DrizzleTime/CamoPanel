@@ -120,6 +120,7 @@ export function ShellLayout() {
   const { token } = theme.useToken();
   const [headerContent, setHeaderContent] = useState<ReactNode | null>(null);
   const currentItem = navigationItems.find((item) => location.pathname.startsWith(item.key));
+  const defaultOpenKeys = location.pathname.startsWith("/app/toolbox") ? ["toolbox"] : [];
   const userMenu = {
     items: [
       {
@@ -162,6 +163,7 @@ export function ShellLayout() {
             theme="dark"
             mode="inline"
             selectedKeys={[location.pathname]}
+            defaultOpenKeys={defaultOpenKeys}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
             style={{ background: "transparent", borderInlineEnd: 0, padding: "12px 8px 0" }}
