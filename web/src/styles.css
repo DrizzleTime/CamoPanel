@@ -1,0 +1,769 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", "IBM Plex Sans SC", "Segoe UI", sans-serif;
+  background: #f5f5f5;
+  color: #141414;
+}
+
+.shell-layout {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.shell-main {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.shell-sider {
+  height: 100%;
+  overflow: auto;
+}
+
+.shell-brand {
+  padding: 24px 20px 18px;
+}
+
+.shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.shell-header-main {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.shell-page-meta {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.shell-page-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #141414;
+}
+
+.shell-page-description {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shell-header-store {
+  width: min(760px, 100%);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.shell-header-search {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.shell-header-filter {
+  flex: 0 0 148px;
+}
+
+.shell-header-hint {
+  font-size: 12px;
+}
+
+.shell-header-tabs {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.shell-header-website {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.shell-header-tab {
+  flex: none;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.shell-user-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding-inline: 10px;
+}
+
+.shell-content {
+  min-height: 0;
+  padding: 24px 28px 28px;
+  overflow: auto;
+}
+
+.page-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.glass-card {
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #ececec;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+}
+
+.ant-alert {
+  border-radius: 18px;
+}
+
+.ant-alert,
+.ant-alert .ant-alert-message,
+.ant-alert .ant-alert-description,
+.ant-alert .ant-typography {
+  color: #141414;
+}
+
+.ant-alert-info {
+  background: #f3f5f7;
+  border-color: #d7dde3;
+}
+
+.ant-alert-info .ant-alert-icon {
+  color: #365066;
+}
+
+.ant-alert-success {
+  background: #f3f7f3;
+  border-color: #d6e3d8;
+}
+
+.ant-alert-success .ant-alert-icon {
+  color: #2f6b45;
+}
+
+.ant-alert-warning {
+  background: #faf6ed;
+  border-color: #ead8b2;
+}
+
+.ant-alert-warning .ant-alert-icon {
+  color: #8a5a18;
+}
+
+.ant-alert-error {
+  background: #fbf1f1;
+  border-color: #ebd0d0;
+}
+
+.ant-alert-error .ant-alert-icon {
+  color: #9f3a38;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  margin: 6px 0 0;
+  max-width: 780px;
+  font-size: 14px;
+  color: #595959;
+}
+
+.dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-main,
+.dashboard-side {
+  display: grid;
+  gap: 20px;
+}
+
+.dashboard-ring-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.dashboard-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.dashboard-chart-wide {
+  grid-column: 1 / -1;
+}
+
+.dashboard-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dashboard-alert-list {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-action-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.copilot-stream {
+  display: grid;
+  gap: 14px;
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  white-space: pre-wrap;
+}
+
+.chat-bubble.user {
+  margin-left: auto;
+  background: #141414;
+  color: #fafafa;
+}
+
+.chat-bubble.assistant {
+  background: #ffffff;
+  border: 1px solid #ececec;
+}
+
+.store-page {
+  gap: 20px;
+}
+
+.store-hero-card .ant-card-body {
+  padding: 24px 28px;
+}
+
+.store-hero-content {
+  display: grid;
+  gap: 20px;
+}
+
+.store-overview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.store-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.store-stat-card {
+  display: grid;
+  gap: 8px;
+  min-height: 124px;
+  padding: 18px 20px;
+  border: 1px solid #ececec;
+  border-radius: 18px;
+  background: #fafafa;
+}
+
+.store-stat-value {
+  margin: 0 !important;
+}
+
+.store-search-box {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.store-app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.store-app-card {
+  height: 100%;
+}
+
+.store-app-card .ant-card-body {
+  height: 100%;
+  padding: 24px;
+}
+
+.store-app-card-body {
+  display: grid;
+  gap: 18px;
+  height: 100%;
+}
+
+.store-app-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.store-app-icon {
+  width: 60px;
+  min-width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ececec;
+  border-radius: 18px;
+  background: #f5f5f5;
+  color: #1677ff;
+  font-size: 28px;
+}
+
+.store-app-summary {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.store-app-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.store-app-title {
+  margin: 0 !important;
+}
+
+.store-app-description {
+  margin: 0 !important;
+  color: #595959;
+}
+
+.store-app-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.store-app-hint {
+  display: block;
+  min-height: 44px;
+}
+
+.store-app-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.store-app-footer-note {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.store-empty-card .ant-card-body {
+  padding: 36px 24px;
+}
+
+.store-instance-card {
+  border: 1px solid #ececec;
+  background: #fafafa;
+  box-shadow: none;
+}
+
+.store-instance-card .ant-card-body {
+  padding: 18px 20px;
+}
+
+.store-instance-card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.store-instance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.store-instance-summary {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.store-instance-title {
+  margin: 0 !important;
+}
+
+.store-instance-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.database-page {
+  gap: 20px;
+}
+
+.schedule-page {
+  gap: 20px;
+}
+
+.schedule-hero-card .ant-card-body {
+  padding: 24px 28px;
+}
+
+.schedule-hero {
+  display: grid;
+  gap: 20px;
+}
+
+.schedule-hero-copy {
+  display: grid;
+  gap: 10px;
+  max-width: 920px;
+}
+
+.schedule-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.schedule-stat-card {
+  display: grid;
+  gap: 8px;
+  min-height: 128px;
+  padding: 18px 20px;
+  border: 1px solid #ececec;
+  border-radius: 18px;
+  background: #fafafa;
+}
+
+.schedule-stat-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #141414;
+  color: #fafafa;
+  font-size: 16px;
+}
+
+.schedule-stat-value {
+  margin: 0 !important;
+}
+
+.schedule-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.8fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.schedule-primary-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.schedule-help-list {
+  display: grid;
+  gap: 12px;
+}
+
+.schedule-help-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #ececec;
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.database-toolbar {
+  align-items: center;
+}
+
+.database-main {
+  display: grid;
+  gap: 20px;
+}
+
+.database-status-header,
+.database-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.database-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.database-descriptions .ant-descriptions-view {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.database-summary-card .ant-card-body {
+  padding: 20px;
+}
+
+.database-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.database-summary-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.database-summary-kpi {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #fafafa;
+  border: 1px solid #ececec;
+}
+
+.database-redis-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.containers-tab-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.containers-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.containers-warning-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mono-box {
+  overflow: auto;
+  padding: 16px;
+  border-radius: 16px;
+  background: #141414;
+  color: #fafafa;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  white-space: pre-wrap;
+}
+
+.files-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.files-current-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.file-editor-area textarea {
+  font-family: "IBM Plex Mono", "SFMono-Regular", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.page-inline-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (max-width: 1280px) {
+  .dashboard-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .database-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .containers-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .store-stats-grid,
+  .schedule-kpi-grid,
+  .store-app-grid,
+  .database-redis-config-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .shell-header,
+  .shell-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .shell-header {
+    align-items: center;
+  }
+
+  .shell-header-main,
+  .shell-header-store {
+    width: 100%;
+  }
+
+  .shell-header-store {
+    flex-wrap: wrap;
+  }
+
+  .shell-header-filter {
+    flex: 1 1 160px;
+  }
+
+  .shell-page-description {
+    white-space: normal;
+  }
+
+  .dashboard-kpi-grid,
+  .dashboard-chart-grid,
+  .dashboard-info-grid,
+  .dashboard-action-row,
+  .containers-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-chart-wide {
+    grid-column: auto;
+  }
+
+  .store-stats-grid,
+  .schedule-kpi-grid,
+  .store-app-grid,
+  .database-redis-config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .files-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .page-inline-bar {
+    align-items: stretch;
+  }
+
+  .store-app-card .ant-card-body,
+  .store-hero-card .ant-card-body,
+  .schedule-hero-card .ant-card-body {
+    padding: 20px;
+  }
+
+  .store-app-title-row,
+  .store-app-footer,
+  .store-instance-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chat-bubble {
+    max-width: 100%;
+  }
+}

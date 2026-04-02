@@ -1,0 +1,36 @@
+id: mysql
+name: MySQL
+version: "8.4"
+description: 轻量的 MySQL 单实例模板，适合快速创建业务数据库。
+params:
+  - name: port
+    label: 对外端口
+    description: 暴露给宿主机的 MySQL 端口
+    type: number
+    required: true
+    default: 3306
+  - name: database
+    label: 初始数据库
+    description: 容器初始化时自动创建的数据库名
+    type: string
+    required: true
+    default: app
+  - name: username
+    label: 应用用户名
+    description: 初始化时自动创建的业务账号
+    type: string
+    required: true
+    default: app
+  - name: password
+    label: 应用密码
+    description: 应用账号密码
+    type: secret
+    required: true
+  - name: root_password
+    label: Root 密码
+    description: MySQL root 账号密码
+    type: secret
+    required: true
+health_hints:
+  - 首次启动会初始化数据目录，通常需要几十秒。
+  - 如果无法连接，优先检查端口占用和 root 密码。

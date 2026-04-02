@@ -1,0 +1,37 @@
+id: wordpress
+name: WordPress
+version: "6"
+description: 带 MariaDB 的单机 WordPress 模板，适合快速起站。
+params:
+  - name: port
+    label: 对外端口
+    description: 暴露给宿主机的 WordPress 端口
+    type: number
+    required: true
+    default: 8080
+  - name: db_name
+    label: 数据库名
+    description: WordPress 连接的数据库名
+    type: string
+    required: true
+    default: wordpress
+  - name: db_user
+    label: 数据库用户
+    description: WordPress 连接数据库时使用的用户名
+    type: string
+    required: true
+    default: wordpress
+  - name: db_password
+    label: 数据库密码
+    description: WordPress 数据库用户密码
+    type: secret
+    required: true
+  - name: db_root_password
+    label: Root 密码
+    description: MariaDB root 密码
+    type: secret
+    required: true
+health_hints:
+  - 初次启动时数据库会先初始化，再由 WordPress 重试连接。
+  - 如果首页报数据库错误，先检查 db_password 和 db_root_password。
+

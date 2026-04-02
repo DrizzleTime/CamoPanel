@@ -1,0 +1,32 @@
+id: postgres
+name: PostgreSQL
+version: "16"
+description: 轻量的 PostgreSQL 单实例模板，适合先搭数据库服务。
+params:
+  - name: port
+    label: 对外端口
+    description: 暴露给宿主机的 PostgreSQL 端口
+    type: number
+    required: true
+    default: 5432
+  - name: database
+    label: 数据库名
+    description: 初始化创建的数据库
+    type: string
+    required: true
+    default: app
+  - name: username
+    label: 用户名
+    description: PostgreSQL 登录用户
+    type: string
+    required: true
+    default: app
+  - name: password
+    label: 密码
+    description: PostgreSQL 登录密码
+    type: secret
+    required: true
+health_hints:
+  - 容器启动后需要几秒完成初始化。
+  - 如果不断重启，优先检查账号密码和数据目录权限。
+

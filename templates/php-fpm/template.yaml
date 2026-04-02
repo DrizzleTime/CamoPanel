@@ -1,0 +1,20 @@
+id: php-fpm
+name: PHP-FPM
+version: "8.3"
+description: 独立 PHP-FPM 运行环境，供网站管理页绑定 PHP 站点使用。
+params:
+  - name: port
+    label: FPM 端口
+    description: 绑定到宿主机 127.0.0.1 的 PHP-FPM 端口
+    type: number
+    required: true
+    default: 9000
+  - name: php_version
+    label: PHP 版本
+    description: PHP-FPM 镜像版本
+    type: string
+    required: true
+    default: "8.3"
+health_hints:
+  - PHP-FPM 会挂载 OpenResty 站点目录，供网站页直接复用代码目录。
+  - 推荐为不同业务使用独立 PHP 环境，便于版本切换和回滚。

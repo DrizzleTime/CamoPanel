@@ -1,0 +1,25 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    networks:
+      camopanel:
+        aliases:
+          - "{{ .Runtime.ProjectName }}"
+    environment:
+      MYSQL_DATABASE: {{ .Values.database }}
+      MYSQL_USER: {{ .Values.username }}
+      MYSQL_PASSWORD: {{ .Values.password }}
+      MYSQL_ROOT_PASSWORD: {{ .Values.root_password }}
+    ports:
+      - "{{ .Values.port }}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:
+
+networks:
+  camopanel:
+    external: true
+    name: "{{ .Runtime.BridgeNetworkName }}"

@@ -1,0 +1,17 @@
+services:
+  app:
+    image: php:{{ .Values.php_version }}-fpm-alpine
+    restart: unless-stopped
+    networks:
+      camopanel:
+        aliases:
+          - "{{ .Runtime.ProjectName }}"
+    ports:
+      - "127.0.0.1:{{ .Values.port }}:9000"
+    volumes:
+      - "{{ .Runtime.OpenRestyHostSiteDir }}:/var/www/openresty"
+
+networks:
+  camopanel:
+    external: true
+    name: "{{ .Runtime.BridgeNetworkName }}"
