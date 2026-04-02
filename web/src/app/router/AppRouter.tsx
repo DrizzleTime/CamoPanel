@@ -38,6 +38,14 @@ const CopilotPage = lazy(async () => ({
   default: (await import("../../pages/CopilotPage")).CopilotPage,
 }));
 
+const SystemConfigPage = lazy(async () => ({
+  default: (await import("../../pages/SystemConfigPage")).SystemConfigPage,
+}));
+
+const CleanupPage = lazy(async () => ({
+  default: (await import("../../pages/CleanupPage")).CleanupPage,
+}));
+
 export function AppRouter() {
   return (
     <Suspense fallback={<Spin size="large" style={{ margin: "20vh auto", display: "block" }} />}>
@@ -51,6 +59,8 @@ export function AppRouter() {
           <Route path="/app/files" element={<FilesPage />} />
           <Route path="/app/containers" element={<ContainersPage />} />
           <Route path="/app/copilot" element={<CopilotPage />} />
+          <Route path="/app/toolbox/config" element={<SystemConfigPage />} />
+          <Route path="/app/toolbox/cleanup" element={<CleanupPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
       </Routes>

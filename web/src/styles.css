@@ -666,6 +666,116 @@ body {
   gap: 12px;
 }
 
+.sysconfig-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.sysconfig-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sysconfig-card-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #141414;
+  color: #fafafa;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.sysconfig-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+}
+
+.cleanup-hero-card .ant-card-body {
+  padding: 48px 28px;
+}
+
+.cleanup-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.cleanup-hero-icon {
+  width: 100px;
+  height: 100px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f0f5ff;
+}
+
+.cleanup-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cleanup-summary-left {
+  display: grid;
+  gap: 6px;
+}
+
+.cleanup-select-bar {
+  padding: 0 4px;
+}
+
+.cleanup-item-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cleanup-item-card {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cleanup-item-card:hover {
+  border-color: #d9d9d9;
+}
+
+.cleanup-item-selected {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1) !important;
+}
+
+.cleanup-item-body {
+  display: grid;
+  gap: 14px;
+}
+
+.cleanup-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cleanup-item-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.cleanup-item-info {
+  display: grid;
+  gap: 6px;
+}
+
 @media (max-width: 1280px) {
   .dashboard-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -691,6 +801,10 @@ body {
   .schedule-kpi-grid,
   .store-app-grid,
   .database-redis-config-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cleanup-item-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -765,5 +879,10 @@ body {
 
   .chat-bubble {
     max-width: 100%;
+  }
+
+  .sysconfig-grid,
+  .cleanup-item-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -129,6 +129,134 @@ func (h *Handler) RestartDocker(c *gin.Context) {
 	httpx.OK(c, gin.H{"ok": true})
 }
 
+func (h *Handler) GetSystemConfig(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	cfg, err := h.system.GetSystemConfig(c.Request.Context())
+	if err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, cfg)
+}
+
+func (h *Handler) UpdateHostname(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	var req struct {
+		Hostname string `json:"hostname" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.ErrorFrom(c, platformerrs.E(platformerrs.CodeInvalidArgument, "请求格式错误"))
+		return
+	}
+	if err := h.system.UpdateHostname(c.Request.Context(), req.Hostname); err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, gin.H{"ok": true})
+}
+
+func (h *Handler) UpdateDNS(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	var req struct {
+		Servers []string `json:"servers" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.ErrorFrom(c, platformerrs.E(platformerrs.CodeInvalidArgument, "请求格式错误"))
+		return
+	}
+	if err := h.system.UpdateDNS(c.Request.Context(), req.Servers); err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, gin.H{"ok": true})
+}
+
+func (h *Handler) UpdateTimezone(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	var req struct {
+		Timezone string `json:"timezone" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.ErrorFrom(c, platformerrs.E(platformerrs.CodeInvalidArgument, "请求格式错误"))
+		return
+	}
+	if err := h.system.UpdateTimezone(c.Request.Context(), req.Timezone); err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, gin.H{"ok": true})
+}
+
+func (h *Handler) CreateSwap(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	var req struct {
+		SizeMB int `json:"size_mb" binding:"required,min=64"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.ErrorFrom(c, platformerrs.E(platformerrs.CodeInvalidArgument, "请求格式错误，Swap 最小 64 MB"))
+		return
+	}
+	swap, err := h.system.CreateSwap(c.Request.Context(), req.SizeMB)
+	if err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, swap)
+}
+
+func (h *Handler) RemoveSwap(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	swap, err := h.system.RemoveSwap(c.Request.Context())
+	if err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, swap)
+}
+
+func (h *Handler) ScanCleanup(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	result, err := h.system.ScanCleanup(c.Request.Context())
+	if err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, result)
+}
+
+func (h *Handler) ExecuteCleanup(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
+	var req struct {
+		Categories []string `json:"categories" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.ErrorFrom(c, platformerrs.E(platformerrs.CodeInvalidArgument, "请求格式错误"))
+		return
+	}
+	result, err := h.system.ExecuteCleanup(c.Request.Context(), req.Categories)
+	if err != nil {
+		httpx.ErrorFrom(c, mapSystemError(err))
+		return
+	}
+	httpx.OK(c, result)
+}
+
 func requireSuperAdmin(c *gin.Context) bool {
 	value, ok := platformauth.CurrentSubject(c)
 	if !ok {

@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  ClearOutlined,
   CloudServerOutlined,
   ContainerOutlined,
   DatabaseOutlined,
@@ -9,6 +10,8 @@ import {
   LogoutOutlined,
   MessageOutlined,
   ScheduleOutlined,
+  SettingOutlined,
+  ToolOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useState, type ReactNode } from "react";
@@ -74,13 +77,41 @@ const navigationItems = [
     headerTitle: "Camo Copilot",
     headerDescription: "只读分析，不直接执行写操作。",
   },
+  {
+    key: "/app/toolbox/config",
+    icon: <SettingOutlined />,
+    label: "系统配置",
+    headerTitle: "系统配置",
+    headerDescription: "管理主机名、DNS、时区和 Swap 等系统基础配置。",
+    group: "toolbox",
+  },
+  {
+    key: "/app/toolbox/cleanup",
+    icon: <ClearOutlined />,
+    label: "垃圾清理",
+    headerTitle: "垃圾清理",
+    headerDescription: "扫描并清理系统缓存、日志和临时文件，释放磁盘空间。",
+    group: "toolbox",
+  },
 ];
 
-const menuItems = navigationItems.map(({ key, icon, label }) => ({
-  key,
-  icon,
-  label,
-}));
+const toolboxChildren = navigationItems
+  .filter((item) => "group" in item && item.group === "toolbox")
+  .map(({ key, icon, label }) => ({ key, icon, label }));
+
+const topLevelItems = navigationItems
+  .filter((item) => !("group" in item))
+  .map(({ key, icon, label }) => ({ key, icon, label }));
+
+const menuItems = [
+  ...topLevelItems,
+  {
+    key: "toolbox",
+    icon: <ToolOutlined />,
+    label: "系统工具",
+    children: toolboxChildren,
+  },
+];
 
 export function ShellLayout() {
   const location = useLocation();

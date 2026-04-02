@@ -19,4 +19,14 @@ func (m Module) RegisterRoutes(api *gin.RouterGroup) {
 	api.GET("/docker/settings", m.handler.DockerSettings)
 	api.PUT("/docker/settings", m.handler.UpdateDockerSettings)
 	api.POST("/docker/restart", m.handler.RestartDocker)
+
+	api.GET("/system/config", m.handler.GetSystemConfig)
+	api.PUT("/system/hostname", m.handler.UpdateHostname)
+	api.PUT("/system/dns", m.handler.UpdateDNS)
+	api.PUT("/system/timezone", m.handler.UpdateTimezone)
+	api.POST("/system/swap/create", m.handler.CreateSwap)
+	api.POST("/system/swap/remove", m.handler.RemoveSwap)
+
+	api.GET("/system/cleanup/scan", m.handler.ScanCleanup)
+	api.POST("/system/cleanup/clean", m.handler.ExecuteCleanup)
 }
