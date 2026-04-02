@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardSnapshot } from "../types";
 
 export type DashboardStreamState = "connecting" | "live" | "retrying";
@@ -13,16 +13,7 @@ export function useDashboardStream() {
   const [streamVersion, setStreamVersion] = useState(0);
   const [error, setError] = useState<string>();
 
-  const applySnapshot = useEffectEvent((snapshot: DashboardSnapshot) => {
-    if (!mountedRef.current) return;
-    hasDataRef.current = true;
-    setData(snapshot);
-    setLoading(false);
-    setError(undefined);
-    setStreamState("live");
-  });
-
-  const reconnectStream = useEffectEvent(() => {
+  const reconnectStream = useCallback(() => {
     streamRef.current?.close();
     streamRef.current = null;
     setStreamState("connecting");
@@ -31,7 +22,7 @@ export function useDashboardStream() {
     }
     setError(undefined);
     setStreamVersion((value) => value + 1);
-  });
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -50,7 +41,13 @@ export function useDashboardStream() {
     source.addEventListener("snapshot", (event) => {
       const message = event as MessageEvent<string>;
       try {
-        applySnapshot(JSON.parse(message.data) as DashboardSnapshot);
+        const snapshot = JSON.parse(message.data) as DashboardSnapshot;
+        if (!mountedRef.current) return;
+        hasDataRef.current = true;
+        setData(snapshot);
+        setLoading(false);
+        setError(undefined);
+        setStreamState("live");
       } catch {
         if (!mountedRef.current) return;
         setError("首页实时数据解析失败");
@@ -91,7 +88,7 @@ export function useDashboardStream() {
         streamRef.current = null;
       }
     };
-  }, [applySnapshot, streamVersion]);
+  }, [streamVersion]);
 
   return {
     data,

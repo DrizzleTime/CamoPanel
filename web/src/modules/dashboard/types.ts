@@ -1,6 +1,14 @@
 import type { Project } from "../../shared/types";
 import type { Website } from "../websites/types";
 
+export type TopProcess = {
+  pid: number;
+  name: string;
+  cpu: number;
+  memory: number;
+  memory_bytes: number;
+};
+
 export type HostSummary = {
   hostname: string;
   os: string;
@@ -15,6 +23,8 @@ export type HostSummary = {
   memory_total: number;
   disk_used: number;
   disk_total: number;
+  top_cpu: TopProcess[];
+  top_memory: TopProcess[];
   sampled_at: string;
 };
 

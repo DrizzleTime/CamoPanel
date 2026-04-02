@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/shirou/gopsutil/v4/load"
 	"github.com/shirou/gopsutil/v4/mem"
 	gnet "github.com/shirou/gopsutil/v4/net"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 const (
@@ -21,21 +23,31 @@ const (
 	defaultHostHistoryLimit   = 48
 )
 
+type TopProcess struct {
+	PID     int32   `json:"pid"`
+	Name    string  `json:"name"`
+	CPU     float64 `json:"cpu"`
+	Memory  float64 `json:"memory"`
+	MemoryB uint64  `json:"memory_bytes"`
+}
+
 type HostSummary struct {
-	Hostname     string    `json:"hostname"`
-	OS           string    `json:"os"`
-	Platform     string    `json:"platform"`
-	Kernel       string    `json:"kernel"`
-	Architecture string    `json:"architecture"`
-	CPUCores     int       `json:"cpu_cores"`
-	CPUPercent   float64   `json:"cpu_percent"`
-	Load1        float64   `json:"load_1"`
-	Load5        float64   `json:"load_5"`
-	MemoryUsed   uint64    `json:"memory_used"`
-	MemoryTotal  uint64    `json:"memory_total"`
-	DiskUsed     uint64    `json:"disk_used"`
-	DiskTotal    uint64    `json:"disk_total"`
-	SampledAt    time.Time `json:"sampled_at"`
+	Hostname     string       `json:"hostname"`
+	OS           string       `json:"os"`
+	Platform     string       `json:"platform"`
+	Kernel       string       `json:"kernel"`
+	Architecture string       `json:"architecture"`
+	CPUCores     int          `json:"cpu_cores"`
+	CPUPercent   float64      `json:"cpu_percent"`
+	Load1        float64      `json:"load_1"`
+	Load5        float64      `json:"load_5"`
+	MemoryUsed   uint64       `json:"memory_used"`
+	MemoryTotal  uint64       `json:"memory_total"`
+	DiskUsed     uint64       `json:"disk_used"`
+	DiskTotal    uint64       `json:"disk_total"`
+	TopCPU       []TopProcess `json:"top_cpu"`
+	TopMemory    []TopProcess `json:"top_memory"`
+	SampledAt    time.Time    `json:"sampled_at"`
 }
 
 type HostMetricsPoint struct {
@@ -176,6 +188,7 @@ func (h *HostService) refresh(ctx context.Context) error {
 
 	summary.CPUPercent = point.CPUPercent
 	summary.SampledAt = sampledAt
+	summary.TopCPU, summary.TopMemory = collectTopProcesses(ctx)
 
 	h.summary = summary
 	h.history = append(h.history, point)
@@ -372,4 +385,88 @@ func counterRate(previous uint64, current uint64, seconds float64) float64 {
 		return 0
 	}
 	return float64(current-previous) / seconds
+}
+
+const topProcessCount = 5
+
+func collectTopProcesses(ctx context.Context) (topCPU []TopProcess, topMem []TopProcess) {
+	procs, err := process.ProcessesWithContext(ctx)
+	if err != nil || len(procs) == 0 {
+		return nil, nil
+	}
+
+	type procInfo struct {
+		pid     int32
+		name    string
+		cpuPct  float64
+		memPct  float64
+		memRSS  uint64
+	}
+
+	infos := make([]procInfo, 0, len(procs))
+	for _, p := range procs {
+		name, nameErr := p.NameWithContext(ctx)
+		if nameErr != nil || name == "" {
+			continue
+		}
+
+		cpuPct, cpuErr := p.CPUPercentWithContext(ctx)
+		memInfo, memErr := p.MemoryInfoWithContext(ctx)
+		memPct, memPctErr := p.MemoryPercentWithContext(ctx)
+
+		var rss uint64
+		if memErr == nil && memInfo != nil {
+			rss = memInfo.RSS
+		}
+
+		var mPct float64
+		if memPctErr == nil {
+			mPct = float64(memPct)
+		}
+
+		var cPct float64
+		if cpuErr == nil {
+			cPct = cpuPct
+		}
+
+		if cPct <= 0 && rss == 0 {
+			continue
+		}
+
+		infos = append(infos, procInfo{
+			pid:    p.Pid,
+			name:   name,
+			cpuPct: cPct,
+			memPct: mPct,
+			memRSS: rss,
+		})
+	}
+
+	byCPU := make([]procInfo, len(infos))
+	copy(byCPU, infos)
+	sort.Slice(byCPU, func(i, j int) bool { return byCPU[i].cpuPct > byCPU[j].cpuPct })
+
+	byMem := make([]procInfo, len(infos))
+	copy(byMem, infos)
+	sort.Slice(byMem, func(i, j int) bool { return byMem[i].memRSS > byMem[j].memRSS })
+
+	toSlice := func(src []procInfo) []TopProcess {
+		n := topProcessCount
+		if len(src) < n {
+			n = len(src)
+		}
+		out := make([]TopProcess, n)
+		for i := 0; i < n; i++ {
+			out[i] = TopProcess{
+				PID:     src[i].pid,
+				Name:    src[i].name,
+				CPU:     src[i].cpuPct,
+				Memory:  src[i].memPct,
+				MemoryB: src[i].memRSS,
+			}
+		}
+		return out
+	}
+
+	return toSlice(byCPU), toSlice(byMem)
 }

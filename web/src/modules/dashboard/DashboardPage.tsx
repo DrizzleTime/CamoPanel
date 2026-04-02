@@ -5,12 +5,12 @@ import {
   RocketOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Card, Empty, Progress, Skeleton, Space, Tag, Typography, theme } from "antd";
+import { Alert, Button, Card, Empty, Popover, Progress, Skeleton, Space, Tag, Typography, theme } from "antd";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { bytesToSize } from "../../shared/lib/format";
 import { useDashboardStream } from "./hooks/useDashboardStream";
-import type { HostMetricsPoint } from "./types";
+import type { HostMetricsPoint, TopProcess } from "./types";
 
 type ChartSeries = {
   label: string;
@@ -151,24 +151,70 @@ export function DashboardPage() {
                     percent={cpuPercent}
                     detail={`${summary?.cpu_cores ?? 0} 核 / 负载 ${summary?.load_5.toFixed(2) ?? "0.00"}`}
                     tone={toneFromPercent(cpuPercent)}
+                    tooltipContent={
+                      <StatusTooltip
+                        rows={[
+                          ["使用率", `${cpuPercent.toFixed(1)}%`],
+                          ["核心数", `${summary?.cpu_cores ?? 0} 核`],
+                          ["1 分钟负载", (summary?.load_1 ?? 0).toFixed(2)],
+                          ["5 分钟负载", (summary?.load_5 ?? 0).toFixed(2)],
+                        ]}
+                        processes={summary?.top_cpu}
+                        processLabel="Top 5 CPU 进程"
+                        processValueKey="cpu"
+                      />
+                    }
                   />
                   <StatusRing
                     label="内存"
                     percent={memoryPercent}
                     detail={`${bytesToSize(summary?.memory_used ?? 0)} / ${bytesToSize(summary?.memory_total ?? 0)}`}
                     tone={toneFromPercent(memoryPercent)}
+                    tooltipContent={
+                      <StatusTooltip
+                        rows={[
+                          ["使用率", `${memoryPercent.toFixed(1)}%`],
+                          ["已用", bytesToSize(summary?.memory_used ?? 0)],
+                          ["总量", bytesToSize(summary?.memory_total ?? 0)],
+                          ["可用", bytesToSize((summary?.memory_total ?? 0) - (summary?.memory_used ?? 0))],
+                        ]}
+                        processes={summary?.top_memory}
+                        processLabel="Top 5 内存进程"
+                        processValueKey="memory"
+                      />
+                    }
                   />
                   <StatusRing
                     label="磁盘"
                     percent={diskPercent}
                     detail={`${bytesToSize(summary?.disk_used ?? 0)} / ${bytesToSize(summary?.disk_total ?? 0)}`}
                     tone={toneFromPercent(diskPercent)}
+                    tooltipContent={
+                      <StatusTooltip
+                        rows={[
+                          ["使用率", `${diskPercent.toFixed(1)}%`],
+                          ["已用", bytesToSize(summary?.disk_used ?? 0)],
+                          ["总量", bytesToSize(summary?.disk_total ?? 0)],
+                          ["可用", bytesToSize((summary?.disk_total ?? 0) - (summary?.disk_used ?? 0))],
+                        ]}
+                      />
+                    }
                   />
                   <StatusRing
                     label="负载"
                     percent={loadPercent}
                     detail={`${(summary?.load_1 ?? 0).toFixed(2)} / ${summary?.cpu_cores ?? 0}`}
                     tone={toneFromPercent(loadPercent)}
+                    tooltipContent={
+                      <StatusTooltip
+                        rows={[
+                          ["1 分钟负载", (summary?.load_1 ?? 0).toFixed(2)],
+                          ["5 分钟负载", (summary?.load_5 ?? 0).toFixed(2)],
+                          ["CPU 核心数", `${summary?.cpu_cores ?? 0}`],
+                          ["负载 / 核心", `${loadPercent.toFixed(1)}%`],
+                        ]}
+                      />
+                    }
                   />
                 </div>
               </Card>
@@ -387,20 +433,93 @@ function KpiCard({
   );
 }
 
+function StatusTooltip({
+  rows,
+  processes,
+  processLabel,
+  processValueKey,
+}: {
+  rows: [string, string][];
+  processes?: TopProcess[];
+  processLabel?: string;
+  processValueKey?: "cpu" | "memory";
+}) {
+  return (
+    <div style={{ minWidth: 220 }}>
+      {rows.map(([key, val]) => (
+        <div
+          key={key}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 24,
+            padding: "4px 0",
+          }}
+        >
+          <Typography.Text type="secondary">{key}</Typography.Text>
+          <Typography.Text strong>{val}</Typography.Text>
+        </div>
+      ))}
+      {processes && processes.length > 0 && (
+        <>
+          <div
+            style={{
+              borderTop: "1px solid var(--ant-color-border-secondary, #f0f0f0)",
+              margin: "8px 0 6px",
+            }}
+          />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {processLabel ?? "Top 进程"}
+          </Typography.Text>
+          <div style={{ marginTop: 4 }}>
+            {processes.map((p) => (
+              <div
+                key={p.pid}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "2px 0",
+                  fontSize: 12,
+                }}
+              >
+                <Typography.Text
+                  ellipsis
+                  style={{ maxWidth: 140, fontSize: 12 }}
+                  title={`${p.name} (PID ${p.pid})`}
+                >
+                  {p.name}
+                </Typography.Text>
+                <Typography.Text strong style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                  {processValueKey === "memory"
+                    ? bytesToSize(p.memory_bytes)
+                    : `${p.cpu.toFixed(1)}%`}
+                </Typography.Text>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function StatusRing({
   label,
   percent,
   detail,
   tone,
+  tooltipContent,
 }: {
   label: string;
   percent: number;
   detail: string;
   tone: "good" | "warn" | "danger";
+  tooltipContent?: ReactNode;
 }) {
   const { token } = theme.useToken();
 
-  return (
+  const ring = (
     <div
       style={{
         display: "grid",
@@ -410,6 +529,8 @@ function StatusRing({
         borderRadius: token.borderRadiusLG,
         border: `1px solid ${token.colorBorderSecondary}`,
         background: token.colorFillAlter,
+        cursor: tooltipContent ? "pointer" : undefined,
+        transition: "border-color 0.2s",
       }}
     >
       <Progress
@@ -433,6 +554,14 @@ function StatusRing({
         {detail}
       </Typography.Text>
     </div>
+  );
+
+  if (!tooltipContent) return ring;
+
+  return (
+    <Popover content={tooltipContent} title={label} trigger="hover" placement="bottom">
+      {ring}
+    </Popover>
   );
 }
 
