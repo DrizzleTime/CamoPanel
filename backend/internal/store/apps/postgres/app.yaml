@@ -1,0 +1,48 @@
+schema_version: "1.0"
+id: "postgres"
+name: "PostgreSQL 数据库"
+category: "database"
+version: "17-alpine"
+icon: "database"
+website: "https://www.postgresql.org"
+description: "强大的开源对象关系型数据库系统，支持高级数据类型与扩展。"
+
+gateway:
+  is_web_app: false
+
+data_dirs:
+  - "data"
+
+ports:
+  - key: "PG_PORT"
+    label: "服务端口"
+    container_port: 5432
+    protocol: "tcp"
+    default: 5432
+    description: "宿主机访问端口"
+    required: true
+    proxyable: false
+
+params:
+  - key: "POSTGRES_USER"
+    label: "超级用户名"
+    type: "string"
+    default: "postgres"
+    description: "初始超级管理员用户名"
+    required: true
+
+  - key: "POSTGRES_PASSWORD"
+    label: "超级用户密码"
+    type: "password"
+    default: "auto"
+    description: "初始超级管理员密码"
+    required: true
+    is_secret: true
+    auto_generate: true
+
+  - key: "POSTGRES_DB"
+    label: "默认数据库"
+    type: "string"
+    default: "maindb"
+    description: "初始化创建数据库"
+    required: false

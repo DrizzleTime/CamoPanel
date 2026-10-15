@@ -1,0 +1,10 @@
+# Linux/rootful Docker. Replace the socket path for rootless Docker.
+services:
+  camopanel:
+    environment:
+      DOCKER_MODE: "docker"
+      DOCKER_HOST: "unix:///var/run/docker.sock"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_SOCKET_GID:?请设置宿主机 Docker socket 的 GID}"

@@ -1,0 +1,13 @@
+{"time":"2026-10-14T15:21:24Z","actor":"local","method":"POST","path":"/api/v1/certificates/self-signed","status":400}
+{"time":"2026-10-14T15:22:48Z","actor":"local","method":"POST","path":"/api/v1/nginx/action","status":200}
+{"time":"2026-10-14T16:55:54Z","actor":"local","method":"POST","path":"/api/v1/ai/chat","status":200}
+{"time":"2026-10-14T16:56:02Z","actor":"local","method":"POST","path":"/api/v1/terminals/host","status":200}
+{"time":"2026-10-14T17:28:36Z","actor":"admin","method":"POST","path":"/api/v1/auth/login","status":200}
+{"time":"2026-10-14T17:28:36Z","actor":"admin","method":"POST","path":"/api/v1/auth/logout","status":200}
+{"time":"2026-10-14T17:34:59Z","actor":"admin","method":"POST","path":"/api/v1/auth/login","status":200}
+{"time":"2026-10-14T17:35:53Z","actor":"admin","method":"POST","path":"/api/v1/databases/mysql/exec","status":200,"detail":"SELECT 1"}
+{"time":"2026-10-14T17:47:23Z","actor":"admin","method":"POST","path":"/api/v1/auth/logout","status":200}
+{"time":"2026-10-14T17:47:25Z","actor":"admin","method":"POST","path":"/api/v1/auth/login","status":200}
+{"time":"2026-10-15T06:52:01Z","actor":"admin","method":"POST","path":"/api/v1/auth/login","status":200}
+{"time":"2026-10-15T08:15:51Z","actor":"admin","method":"POST","path":"/api/v1/auth/login","status":200}
+{"time":"2026-10-15T08:16:37Z","actor":"admin","method":"POST","path":"/api/v1/nginx/action","status":200}

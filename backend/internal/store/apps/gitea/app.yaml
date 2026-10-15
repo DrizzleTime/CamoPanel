@@ -1,0 +1,37 @@
+schema_version: "1.0"
+id: "gitea"
+name: "Gitea 代码托管"
+category: "devops"
+version: "1.22"
+icon: "server"
+website: "https://gitea.com"
+description: "轻量级、无痛自建的 Git 服务平台，支持代码仓库、Issue 与 PR 协作。"
+
+gateway:
+  is_web_app: true
+  primary_port_key: "HTTP_PORT"
+  default_subpath: "/"
+
+data_dirs:
+  - "data"
+
+ports:
+  - key: "HTTP_PORT"
+    label: "Web 访问端口"
+    container_port: 3000
+    protocol: "tcp"
+    default: 3000
+    description: "Gitea 网页控制台宿主机端口"
+    required: true
+    proxyable: true
+
+  - key: "SSH_PORT"
+    label: "SSH 克隆端口"
+    container_port: 22
+    protocol: "tcp"
+    default: 2222
+    description: "Git SSH 协议宿主机克隆端口"
+    required: true
+    proxyable: false
+
+params: []

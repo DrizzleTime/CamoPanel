@@ -1,0 +1,28 @@
+schema_version: "1.0"
+id: "uptime-kuma"
+name: "Uptime Kuma 监控"
+category: "devops"
+version: "1"
+icon: "clock"
+website: "https://uptime.kuma.pet"
+description: "自托管的开箱即用网站与服务可用率监控面板，支持多渠道告警。"
+
+gateway:
+  is_web_app: true
+  primary_port_key: "PORT"
+  default_subpath: "/"
+
+data_dirs:
+  - "data"
+
+ports:
+  - key: "PORT"
+    label: "监控面板端口"
+    container_port: 3001
+    protocol: "tcp"
+    default: 3001
+    description: "Web 控制台宿主机访问端口"
+    required: true
+    proxyable: true
+
+params: []

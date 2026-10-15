@@ -1,0 +1,35 @@
+schema_version: "1.0"
+id: "redis"
+name: "Redis 缓存"
+category: "database"
+version: "7-alpine"
+icon: "database"
+website: "https://redis.io"
+description: "高性能内存键值存储，常用于缓存、消息队列和会话存储。"
+
+gateway:
+  is_web_app: false
+
+data_dirs:
+  - "data"
+  - "config"
+
+ports:
+  - key: "REDIS_PORT"
+    label: "Redis 端口"
+    container_port: 6379
+    protocol: "tcp"
+    default: 6379
+    description: "宿主机访问端口"
+    required: true
+    proxyable: false
+
+params:
+  - key: "REDIS_PASSWORD"
+    label: "访问密码"
+    type: "password"
+    default: ""
+    description: "连接密码，留空表示免密访问"
+    required: false
+    is_secret: true
+    auto_generate: true

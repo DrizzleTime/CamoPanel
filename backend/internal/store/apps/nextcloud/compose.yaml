@@ -1,0 +1,10 @@
+services:
+  app:
+    image: nextcloud:apache
+    container_name: ${APP_NAME}-app
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT}:80"
+    volumes:
+      - ./data:/var/www/html/data
+      - ./config:/var/www/html/config

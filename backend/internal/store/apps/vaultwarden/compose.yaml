@@ -1,0 +1,12 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: ${APP_NAME}-app
+    restart: unless-stopped
+    ports:
+      - "${PORT}:80"
+    environment:
+      WEBSOCKET_ENABLED: "true"
+      SIGNUPS_ALLOWED: "${SIGNUPS_ALLOWED:-true}"
+    volumes:
+      - ./data:/data

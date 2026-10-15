@@ -1,0 +1,42 @@
+schema_version: "1.0"
+id: "mysql"
+name: "MySQL 数据库"
+category: "database"
+version: "8.0"
+icon: "database"
+website: "https://www.mysql.com"
+description: "广受欢迎的关系型数据库系统，数据严格存储于受控专属目录。"
+
+gateway:
+  is_web_app: false
+
+data_dirs:
+  - "data"
+  - "config"
+
+ports:
+  - key: "MYSQL_PORT"
+    label: "数据库端口"
+    container_port: 3306
+    protocol: "tcp"
+    default: 3306
+    description: "宿主机访问端口"
+    required: true
+    proxyable: false
+
+params:
+  - key: "MYSQL_ROOT_PASSWORD"
+    label: "Root 密码"
+    type: "password"
+    default: "auto"
+    description: "数据库最高管理员密码"
+    required: true
+    is_secret: true
+    auto_generate: true
+
+  - key: "MYSQL_DATABASE"
+    label: "默认数据库名"
+    type: "string"
+    default: "appdb"
+    description: "初始化创建的数据库"
+    required: false

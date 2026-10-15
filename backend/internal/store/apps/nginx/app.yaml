@@ -1,0 +1,30 @@
+schema_version: "1.0"
+id: "nginx"
+name: "Nginx 静态与代理"
+category: "web"
+version: "alpine"
+icon: "globe"
+website: "https://nginx.org"
+description: "高性能的 HTTP 和反向代理 Web 服务器，内置受控数据与配置目录约束。"
+
+gateway:
+  is_web_app: true
+  primary_port_key: "HTTP_PORT"
+  default_subpath: "/"
+
+data_dirs:
+  - "data"
+  - "config"
+  - "logs"
+
+ports:
+  - key: "HTTP_PORT"
+    label: "HTTP 访问端口"
+    container_port: 80
+    protocol: "tcp"
+    default: 8088
+    description: "宿主机映射的 Web 服务端口"
+    required: true
+    proxyable: true
+
+params: []

@@ -1,0 +1,34 @@
+schema_version: "1.0"
+id: "vaultwarden"
+name: "Vaultwarden 密码库"
+category: "tools"
+version: "latest"
+icon: "tag"
+website: "https://github.com/dani-garcia/vaultwarden"
+description: "基于 Rust 实现的轻量 Bitwarden 兼容密码管理器服务端，低资源占用。"
+
+gateway:
+  is_web_app: true
+  primary_port_key: "PORT"
+  default_subpath: "/"
+
+data_dirs:
+  - "data"
+
+ports:
+  - key: "PORT"
+    label: "服务端口"
+    container_port: 80
+    protocol: "tcp"
+    default: 8082
+    description: "Web 与客户端同步宿主机端口"
+    required: true
+    proxyable: true
+
+params:
+  - key: "SIGNUPS_ALLOWED"
+    label: "允许用户自由注册"
+    type: "boolean"
+    default: true
+    description: "关闭后仅允许管理员邀请注册"
+    required: false

@@ -1,0 +1,48 @@
+schema_version: "1.0"
+id: "wordpress"
+name: "WordPress & MySQL"
+category: "web"
+version: "6.4"
+icon: "globe"
+website: "https://wordpress.org"
+description: "全球最流行的开源网站构建系统与内容管理平台，包含 MySQL 数据库与数据持久化约束。"
+
+gateway:
+  is_web_app: true
+  primary_port_key: "WEB_PORT"
+  default_subpath: "/"
+
+data_dirs:
+  - "data/wp"
+  - "data/mysql"
+  - "config"
+  - "logs"
+
+ports:
+  - key: "WEB_PORT"
+    label: "网站访问端口"
+    container_port: 80
+    protocol: "tcp"
+    default: 8080
+    description: "WordPress Web 服务端口"
+    required: true
+    proxyable: true
+
+params:
+  - key: "MYSQL_ROOT_PASSWORD"
+    label: "MySQL Root 密码"
+    type: "password"
+    default: "auto"
+    description: "数据库根用户密码"
+    required: true
+    is_secret: true
+    auto_generate: true
+
+  - key: "MYSQL_PASSWORD"
+    label: "WordPress 数据库密码"
+    type: "password"
+    default: "auto"
+    description: "WordPress 用户密码"
+    required: true
+    is_secret: true
+    auto_generate: true

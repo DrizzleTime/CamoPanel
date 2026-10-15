@@ -1,0 +1,29 @@
+schema_version: "1.0"
+id: "nextcloud"
+name: "Nextcloud 私有云盘"
+category: "tools"
+version: "apache"
+icon: "folder"
+website: "https://nextcloud.com"
+description: "安全自主可控的私有协同云盘，文件同步、日历与在线文档协同。"
+
+gateway:
+  is_web_app: true
+  primary_port_key: "WEB_PORT"
+  default_subpath: "/"
+
+data_dirs:
+  - "data"
+  - "config"
+
+ports:
+  - key: "WEB_PORT"
+    label: "访问端口"
+    container_port: 80
+    protocol: "tcp"
+    default: 8085
+    description: "Web 面板访问端口"
+    required: true
+    proxyable: true
+
+params: []
