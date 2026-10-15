@@ -39,7 +39,9 @@ parse_args() {
     case "$1" in
       --yes) NONINTERACTIVE=true; shift ;;
       --version|--install-dir|--port|--username)
-        (($# >= 2)) && [[ -n $2 && $2 != --* ]] || die "$1 缺少参数"
+        if (($# < 2)) || [[ -z ${2:-} || ${2:-} == --* ]]; then
+          die "$1 缺少参数"
+        fi
         case "$1" in
           --version) VERSION=$2 ;;
           --install-dir) INSTALL_DIR=$2 ;;
@@ -62,7 +64,9 @@ check_system() {
     aarch64|arm64) ARCH=arm64 ;;
     *) die "不支持的 CPU 架构：$(uname -m)" ;;
   esac
-  command -v systemctl >/dev/null && [[ -d /run/systemd/system ]] || die "需要正在运行的 systemd。"
+  if ! command -v systemctl >/dev/null || [[ ! -d /run/systemd/system ]]; then
+    die "需要正在运行的 systemd。"
+  fi
 }
 
 configure() {
@@ -94,7 +98,9 @@ configure() {
   fi
   local password_bytes
   password_bytes=$(printf %s "$PASSWORD" | wc -c)
-  ((password_bytes >= 8 && password_bytes <= 72)) && [[ $PASSWORD != *$'\n'* && $PASSWORD != *$'\r'* ]] || die "密码必须为 8–72 字节且不含换行。"
+  if ((password_bytes < 8 || password_bytes > 72)) || [[ $PASSWORD == *$'\n'* || $PASSWORD == *$'\r'* ]]; then
+    die "密码必须为 8–72 字节且不含换行。"
+  fi
   [[ ! -e $INSTALL_DIR/.env && ! -e $INSTALL_DIR/camopanel && ! -e $INSTALL_DIR/web && ! -L $INSTALL_DIR ]] || die "目录中已有 CamoPanel 文件，已停止以保留配置和数据：$INSTALL_DIR"
   [[ ! -e $SYSTEMD_DIR/camopanel.service ]] || die "已存在 camopanel.service，请先检查现有服务。"
   [[ -z $(ss -H -ltn "sport = :$PORT") ]] || die "面板端口 $PORT 已被占用，请用 --port 指定其他端口。"
