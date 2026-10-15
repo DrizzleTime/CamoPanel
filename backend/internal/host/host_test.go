@@ -149,29 +149,6 @@ func TestLiveHostOverview(t *testing.T) {
 	}
 }
 
-func TestDemoOverviewIsStable(t *testing.T) {
-	sampler := newDemo()
-	now := time.Now().UTC()
-	overview, err := sampler.Overview(now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if overview.Mode != "demo" || overview.CPU.Cores != 4 || len(overview.Disks) != 2 || len(overview.History) < 60 {
-		t.Fatalf("mode=%s cores=%d disks=%d history=%d", overview.Mode, overview.CPU.Cores, len(overview.Disks), len(overview.History))
-	}
-	if overview.CPU.Percent < 0 || overview.CPU.Percent > 100 || overview.Memory.Percent < 0 || overview.Memory.Percent > 100 {
-		t.Fatalf("percent cpu=%v mem=%v", overview.CPU.Percent, overview.Memory.Percent)
-	}
-	processes, err := sampler.Processes(now, 10, "cpu")
-	if err != nil || len(processes) != 10 || processes[0].Name != "postgres" {
-		t.Fatalf("%+v err=%v", processes, err)
-	}
-	byMem, err := sampler.Processes(now, 1, "mem")
-	if err != nil || byMem[0].Name != "postgres" {
-		t.Fatalf("%+v", byMem)
-	}
-}
-
 type scriptedProc struct {
 	stat   []string
 	statN  int

@@ -21,19 +21,17 @@ var validAppNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}$`
 type Service struct {
 	mu            sync.RWMutex
 	dataDir       string
-	dockerMode    string
 	dockerService docker.Service
 	installed     map[string]*InstalledApp
 }
 
-func NewService(dataDir, dockerMode string, dockerService docker.Service) (*Service, error) {
+func NewService(dataDir string, dockerService docker.Service) (*Service, error) {
 	absDataDir, err := filepath.Abs(dataDir)
 	if err != nil {
 		return nil, err
 	}
 	s := &Service{
 		dataDir:       absDataDir,
-		dockerMode:    dockerMode,
 		dockerService: dockerService,
 		installed:     make(map[string]*InstalledApp),
 	}
@@ -270,33 +268,9 @@ func (s *Service) Install(ctx context.Context, req InstallRequest) (*InstalledAp
 
 	// Deploy containers
 	containerNames := s.extractContainerNames(req.Name, composeContent)
-	if s.dockerMode == "docker" {
-		// If docker compose CLI is present, run docker compose up -d
-		if _, err := exec.LookPath("docker"); err == nil {
-			cmd := exec.CommandContext(ctx, "docker", "compose", "-f", composePath, "up", "-d")
-			cmd.Dir = appDir
-			if out, err := cmd.CombinedOutput(); err != nil {
-				return nil, fmt.Errorf("docker compose 启动失败: %s (%w)", string(out), err)
-			}
-		} else if s.dockerService != nil {
-			// Fallback to running through Docker Engine API
-			for _, cname := range containerNames {
-				_, _ = s.dockerService.RunContainer(ctx, docker.RunContainerRequest{
-					Name:   cname,
-					Image:  template.ID + ":latest",
-					Labels: map[string]string{"io.camopanel.app": req.Name},
-				})
-			}
-		}
-	} else if s.dockerService != nil {
-		// Demo mode: simulate containers in docker service
-		for _, cname := range containerNames {
-			_, _ = s.dockerService.RunContainer(ctx, docker.RunContainerRequest{
-				Name:   cname,
-				Image:  template.ID + ":alpine",
-				Labels: map[string]string{"io.camopanel.app": req.Name},
-			})
-		}
+
+	if err := s.compose(ctx, appDir, composePath, "up", "-d"); err != nil {
+		return nil, err
 	}
 
 	category := "tools"
@@ -370,13 +344,10 @@ func (s *Service) Action(ctx context.Context, id, action string, deleteData bool
 
 	switch action {
 	case "start":
-		if s.dockerMode == "docker" {
-			if _, err := exec.LookPath("docker"); err == nil {
-				cmd := exec.CommandContext(ctx, "docker", "compose", "-f", app.ComposePath, "start")
-				cmd.Dir = app.AppDir
-				_ = cmd.Run()
-			}
+		if err := s.compose(ctx, app.AppDir, app.ComposePath, "start"); err != nil {
+			return err
 		}
+
 		if s.dockerService != nil {
 			for _, cname := range app.ContainerNames {
 				c, err := s.dockerService.FindContainerByName(ctx, cname)
@@ -389,13 +360,10 @@ func (s *Service) Action(ctx context.Context, id, action string, deleteData bool
 		app.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	case "stop":
-		if s.dockerMode == "docker" {
-			if _, err := exec.LookPath("docker"); err == nil {
-				cmd := exec.CommandContext(ctx, "docker", "compose", "-f", app.ComposePath, "stop")
-				cmd.Dir = app.AppDir
-				_ = cmd.Run()
-			}
+		if err := s.compose(ctx, app.AppDir, app.ComposePath, "stop"); err != nil {
+			return err
 		}
+
 		if s.dockerService != nil {
 			for _, cname := range app.ContainerNames {
 				c, err := s.dockerService.FindContainerByName(ctx, cname)
@@ -408,13 +376,10 @@ func (s *Service) Action(ctx context.Context, id, action string, deleteData bool
 		app.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	case "restart":
-		if s.dockerMode == "docker" {
-			if _, err := exec.LookPath("docker"); err == nil {
-				cmd := exec.CommandContext(ctx, "docker", "compose", "-f", app.ComposePath, "restart")
-				cmd.Dir = app.AppDir
-				_ = cmd.Run()
-			}
+		if err := s.compose(ctx, app.AppDir, app.ComposePath, "restart"); err != nil {
+			return err
 		}
+
 		if s.dockerService != nil {
 			for _, cname := range app.ContainerNames {
 				c, err := s.dockerService.FindContainerByName(ctx, cname)
@@ -427,13 +392,10 @@ func (s *Service) Action(ctx context.Context, id, action string, deleteData bool
 		app.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	case "uninstall":
-		if s.dockerMode == "docker" {
-			if _, err := exec.LookPath("docker"); err == nil {
-				cmd := exec.CommandContext(ctx, "docker", "compose", "-f", app.ComposePath, "down")
-				cmd.Dir = app.AppDir
-				_ = cmd.Run()
-			}
+		if err := s.compose(ctx, app.AppDir, app.ComposePath, "down"); err != nil {
+			return err
 		}
+
 		if s.dockerService != nil {
 			for _, cname := range app.ContainerNames {
 				c, err := s.dockerService.FindContainerByName(ctx, cname)
@@ -519,4 +481,14 @@ func (s *Service) GetLogs(ctx context.Context, id string) (string, error) {
 		sb.WriteString(fmt.Sprintf("%s [app-store] 应用 %s 运行正常，暂无额外控制台日志\n", time.Now().UTC().Format(time.RFC3339), id))
 	}
 	return sb.String(), nil
+}
+
+// compose reports command failures before the installed application state changes.
+func (s *Service) compose(ctx context.Context, dir, path string, args ...string) error {
+	command := exec.CommandContext(ctx, "docker", append([]string{"compose", "-f", path}, args...)...)
+	command.Dir = dir
+	if out, err := command.CombinedOutput(); err != nil {
+		return fmt.Errorf("docker compose 执行失败: %s (%w)", string(out), err)
+	}
+	return nil
 }

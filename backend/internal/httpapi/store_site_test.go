@@ -6,19 +6,19 @@ import (
 	"testing"
 
 	"camopanel/backend/internal/config"
-	"camopanel/backend/internal/docker"
+	"camopanel/backend/internal/testutil"
 	"github.com/gin-gonic/gin"
 )
 
 func TestStoreAndSiteEndpoints(t *testing.T) {
+	testutil.DockerCLI(t)
 	gin.SetMode(gin.TestMode)
 	tmpDir := t.TempDir()
 
 	cfg := config.Config{
 		DataDir: tmpDir,
-		Mode:    "demo",
 	}
-	router := New(cfg, docker.NewDemo())
+	router := New(cfg, testutil.NewDocker())
 
 	// 1. App Store Catalog
 	resp := call(router, "GET", "/api/v1/store/apps", "", "", "")
@@ -65,7 +65,7 @@ func TestStoreAndSiteEndpoints(t *testing.T) {
 
 	// 3. Website Endpoints
 	// Create Static Site
-	createSiteBody := `{"name":"demo-site","primary_domain":"demo.local","domains":["www.demo.local"],"type":"static"}`
+	createSiteBody := `{"name":"test-site","primary_domain":"test.local","domains":["www.test.local"],"type":"static"}`
 	createSiteResp := call(router, "POST", "/api/v1/sites", createSiteBody, "", "")
 	if createSiteResp.Code != 201 {
 		t.Fatalf("create site failed: %d %s", createSiteResp.Code, createSiteResp.Body.String())
@@ -80,7 +80,7 @@ func TestStoreAndSiteEndpoints(t *testing.T) {
 
 	// Check static index.html file endpoint
 	fileResp := call(router, "GET", "/api/v1/sites/"+createdSite.ID+"/files/index.html", "", "", "")
-	if fileResp.Code != 200 || !strings.Contains(fileResp.Body.String(), "demo.local") {
+	if fileResp.Code != 200 || !strings.Contains(fileResp.Body.String(), "test.local") {
 		t.Fatalf("get static file failed: %s", fileResp.Body.String())
 	}
 
@@ -104,7 +104,7 @@ func TestStoreAndSiteEndpoints(t *testing.T) {
 	}
 
 	// Create Reverse Proxy Site
-	proxySiteBody := `{"name":"my-api","primary_domain":"api.demo.local","type":"proxy","proxy_target":"http://127.0.0.1:8080"}`
+	proxySiteBody := `{"name":"my-api","primary_domain":"api.test.local","type":"proxy","proxy_target":"http://127.0.0.1:8080"}`
 	proxySiteResp := call(router, "POST", "/api/v1/sites", proxySiteBody, "", "")
 	if proxySiteResp.Code != 201 {
 		t.Fatalf("create proxy site failed: %d %s", proxySiteResp.Code, proxySiteResp.Body.String())

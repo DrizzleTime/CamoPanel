@@ -19,7 +19,7 @@ import (
 )
 
 func TestGoalSitesDocker(t *testing.T) {
-	router, dir := goalRouter(t, "", "demo")
+	router, dir := goalRouter(t, "")
 	legacy := callAs(router, "POST", "/api/v1/docker/containers", `{"name":"legacy-web","image":"nginx:alpine","host_port":8091,"container_port":80}`, "", "")
 	mustCode(t, legacy, 201)
 	badMount := callAs(router, "POST", "/api/v1/docker/containers", `{"name":"mount-bad","image":"nginx:alpine","binds":["/etc/hosts:/mnt:ro"]}`, "", "")

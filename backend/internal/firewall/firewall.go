@@ -3,7 +3,6 @@ package firewall
 import (
 	"fmt"
 	"os/exec"
-	"sync"
 )
 
 type Rule struct {
@@ -12,19 +11,12 @@ type Rule struct {
 }
 
 type Manager struct {
-	mu        sync.Mutex
-	demo      bool
 	panelPort int
-	rules     []Rule
 	lookPath  func(string) (string, error)
 }
 
-func NewDemo(panelPort int) *Manager {
-	return &Manager{demo: true, panelPort: panelPort, rules: []Rule{}, lookPath: exec.LookPath}
-}
-
 func NewSystem(panelPort int) *Manager {
-	return &Manager{demo: false, panelPort: panelPort, rules: []Rule{}, lookPath: exec.LookPath}
+	return &Manager{panelPort: panelPort, lookPath: exec.LookPath}
 }
 
 type Status struct {
@@ -36,16 +28,11 @@ type Status struct {
 }
 
 func (m *Manager) Status() Status {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.demo {
-		return Status{Available: true, Backend: "demo", Rules: append([]Rule{}, m.rules...), PanelPort: m.panelPort}
-	}
 	backend, err := detect(m.lookPath)
 	if err != nil {
 		return Status{Available: false, Message: "当前系统没有可管理的防火墙", Rules: []Rule{}, PanelPort: m.panelPort}
 	}
-	return Status{Available: true, Backend: backend, Rules: append([]Rule{}, m.rules...), PanelPort: m.panelPort}
+	return Status{Available: false, Backend: backend, Message: "防火墙规则管理尚未接入系统后端", Rules: []Rule{}, PanelPort: m.panelPort}
 }
 
 func detect(lookPath func(string) (string, error)) (string, error) {
@@ -57,19 +44,10 @@ func detect(lookPath func(string) (string, error)) (string, error) {
 	return "", fmt.Errorf("missing")
 }
 
-func (m *Manager) Add(port int, policy string, confirm bool) (Status, error) {
+func (m *Manager) Add(_ int, policy string, _ bool) (Status, error) {
 	if policy != "allow" && policy != "deny" {
 		return Status{}, fmt.Errorf("规则只支持 allow 或 deny")
 	}
 	status := m.Status()
-	if !status.Available {
-		return status, fmt.Errorf("%s", status.Message)
-	}
-	if policy == "deny" && port == m.panelPort && !confirm {
-		return status, fmt.Errorf("这条规则会关掉面板端口 %d，确认后才会保存", m.panelPort)
-	}
-	m.mu.Lock()
-	m.rules = append(m.rules, Rule{Port: port, Policy: policy})
-	m.mu.Unlock()
-	return m.Status(), nil
+	return status, fmt.Errorf("%s", status.Message)
 }

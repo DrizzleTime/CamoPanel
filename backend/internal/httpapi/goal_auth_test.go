@@ -15,7 +15,7 @@ import (
 )
 
 func TestGoalAuthAudit(t *testing.T) {
-	router, dir := goalRouter(t, "test-token", "demo")
+	router, dir := goalRouter(t, "test-token")
 
 	mustCode(t, callAs(router, "POST", "/api/v1/auth/login", `{"username":"admin","password":"wrong-pass"}`, "", ""), 401)
 	mustCode(t, callAs(router, "POST", "/api/v1/auth/bootstrap", `{"password":"correct-horse"}`, "", ""), 201)
@@ -94,7 +94,6 @@ func TestGoalAuthAudit(t *testing.T) {
 	t.Setenv("CAMO_ADDR", "0.0.0.0:8080")
 	t.Setenv("CAMO_API_TOKEN", "")
 	t.Setenv("CAMO_DATA_DIR", t.TempDir())
-	t.Setenv("DOCKER_MODE", "demo")
 	if _, err := config.Load(); err == nil {
 		t.Fatal("public listener accepted without a token or password")
 	}
@@ -117,7 +116,7 @@ func TestGoalAuthAudit(t *testing.T) {
 	}
 
 	certFile, keyFile := writeSelfSigned(t.TempDir())
-	httpsRouter, _ := goalRouter(t, "", "demo")
+	httpsRouter, _ := goalRouter(t, "")
 	ln, err := listenLocal()
 	if err != nil {
 		t.Fatal(err)

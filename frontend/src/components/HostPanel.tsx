@@ -201,7 +201,7 @@ export function HostPanel({
           <PanelHeader
             icon={<Icon name="monitor" size={17} />}
             title="近一小时"
-            badge={<Badge>{overview?.mode === 'host' ? '本机' : '演示'}</Badge>}
+            badge={<Badge>本机</Badge>}
             extra={<span style={{ color: '#64748b', fontSize: 12 }}>{overview ? `已运行 ${formatUptime(overview.uptime_seconds)}` : ''}</span>}
           />
           <div {...stylex.props(styles.chart)}>

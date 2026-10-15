@@ -5,6 +5,8 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Badge } from './ui/Badge';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { Input } from './ui/Input';
+import { FormField } from './ui/FormField';
 import { api, formatBytes, type Snapshot } from '../lib/api';
 import { ACCENT_COLORS, applyThemeAccent, applyThemeBg, applyTypography, readTypography, type Density } from '../theme/tokens';
 
@@ -12,9 +14,9 @@ const styles = stylex.create({
   container: {
     display: 'grid',
     gridTemplateColumns: { default: '180px 1fr', '@media (max-width: 650px)': '1fr' },
-    minHeight: { default: 460, '@media (max-width: 650px)': 0 },
+    height: 'min(640px, calc(100dvh - 42px))',
     gridTemplateRows: { default: 'minmax(0, 1fr)', '@media (max-width: 650px)': 'auto minmax(0, 1fr)' },
-    maxHeight: '82vh',
+    overflow: 'hidden',
   },
   sidebar: {
     backgroundColor: '#fafbfc',
@@ -59,6 +61,8 @@ const styles = stylex.create({
     minHeight: 0,
     minWidth: 0,
     overflowY: 'auto',
+    overscrollBehaviorY: 'contain',
+    scrollbarGutter: 'stable',
     display: 'flex',
     flexDirection: 'column',
     gap: 18,
@@ -69,6 +73,7 @@ const styles = stylex.create({
     alignItems: 'center',
     paddingBottom: 12,
     borderBottom: '1px solid #f1f5f9',
+    flexShrink: 0,
   },
   headerTitle: {
     fontSize: 15,
@@ -162,29 +167,6 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
-    padding: '4px 0',
-  },
-  formLabel: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 7,
-    fontSize: 12.5,
-    fontWeight: 550,
-    color: '#334155',
-  },
-  input: {
-    width: '100%',
-    minWidth: 0,
-    padding: '8px 12px',
-    border: '1px solid #cbd5e1',
-    borderRadius: 7,
-    color: '#0f172a',
-    backgroundColor: '#ffffff',
-    fontSize: 13,
-    outline: { default: 'none', ':focus-visible': '2px solid var(--accent)' },
-    outlineOffset: 2,
-    borderColor: { default: '#cbd5e1', ':hover': '#94a3b8', ':focus': 'var(--accent)' },
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
   },
   insight: {
     backgroundColor: '#f8fafc',
@@ -464,17 +446,15 @@ export function SettingsModal({
               <code style={{ color: 'var(--accent, #d85c49)' }}>CAMO_API_TOKEN</code> 进行鉴权。
             </p>
             <p {...stylex.props(styles.desc)}>{exposure}。未同时配置 CAMO_TLS_CERT 与 CAMO_TLS_KEY 时，面板继续使用 HTTP。</p>
-            <label {...stylex.props(styles.formLabel)}>
-              API 访问令牌
-              <input
+            <FormField label="API 访问令牌">
+              <Input
                 type="password"
                 autoComplete="off"
-                {...stylex.props(styles.input)}
                 value={inputToken}
                 onChange={e => setInputToken(e.target.value)}
                 placeholder="未配置可留空；配置后仅保存在当前标签页"
               />
-            </label>
+            </FormField>
             <div {...stylex.props(styles.insight)}>
               <Icon name="info" size={16} />
               <span>
@@ -516,7 +496,7 @@ export function SettingsModal({
                 </div>
               </div>
               {[
-                ['连接模式', data?.mode === 'demo' ? '内存演示模式 (Demo)' : 'Unix Socket 实时引擎'],
+                ['连接模式', 'Unix Socket 实时引擎'],
                 ['Docker 版本', data?.engine.ServerVersion || '—'],
                 ['处理器核心', data ? `${data.engine.NCPU} 核` : '—'],
                 ['内存容量', data ? formatBytes(data.engine.MemTotal) : '—'],

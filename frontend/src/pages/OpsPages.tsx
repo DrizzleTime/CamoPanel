@@ -529,7 +529,7 @@ export function DatabasesPage({
               </button>
               <div className="ops-item-top">
                 <OpsTag tone={engine?.installed ? "success" : "neutral"}>
-                  {loading ? "加载中" : engine?.installed ? "已安装" : "未安装"}
+                  {loading ? "加载中" : engine?.installed ? "已连接" : "未连接"}
                 </OpsTag>
                 {!loading && !engine?.installed && onOpenStore && (
                   <Button size="sm" onClick={() => onOpenStore(id)}>
@@ -552,7 +552,7 @@ export function DatabasesPage({
                   ? "正在读取数据库状态…"
                   : feedback.error && !current
                     ? "数据库状态暂时无法读取。"
-                    : `请先在应用商店安装 ${DATABASE_NAMES[kind]}，再进行操作。`}
+                    : "数据库控制台暂不可用，尚未接入真实数据库。"}
               </span>
             </div>
           )}

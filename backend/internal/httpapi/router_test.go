@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"camopanel/backend/internal/config"
-	"camopanel/backend/internal/docker"
+	"camopanel/backend/internal/testutil"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,7 +27,7 @@ func call(handler http.Handler, method, path, body, token, origin string) *httpt
 }
 func TestAuthAndOriginProtection(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := New(config.Config{Token: "test-token"}, docker.NewDemo())
+	router := New(config.Config{Token: "test-token"}, testutil.NewDocker())
 	for _, test := range []struct {
 		name, path, token, origin string
 		status                    int
@@ -45,7 +45,7 @@ func TestAuthAndOriginProtection(t *testing.T) {
 
 func TestContainerLifecycle(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := New(config.Config{}, docker.NewDemo())
+	router := New(config.Config{}, testutil.NewDocker())
 	created := call(router, "POST", "/api/v1/docker/containers", `{"name":"test-web","image":"nginx:alpine","host_port":8090,"container_port":80}`, "", "")
 	if created.Code != 201 {
 		t.Fatalf("create failed: %s", created.Body.String())
@@ -70,17 +70,17 @@ func TestContainerLifecycle(t *testing.T) {
 
 func TestHostOverviewAndProcesses(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := New(config.Config{Token: "test-token"}, docker.NewDemo())
+	router := New(config.Config{Token: "test-token"}, testutil.NewDocker())
 	denied := call(router, "GET", "/api/v1/host/overview", "", "", "")
 	if denied.Code != 401 {
 		t.Fatalf("status=%d", denied.Code)
 	}
 	overview := call(router, "GET", "/api/v1/host/overview", "", "test-token", "")
-	if overview.Code != 200 || !strings.Contains(overview.Body.String(), `"mode":"demo"`) {
+	if overview.Code != 200 || !strings.Contains(overview.Body.String(), `"mode":"host"`) {
 		t.Fatalf("overview=%d %s", overview.Code, overview.Body.String())
 	}
 	processes := call(router, "GET", "/api/v1/host/processes", "", "test-token", "")
-	if processes.Code != 200 || !strings.Contains(processes.Body.String(), `"name":"postgres"`) {
+	if processes.Code != 200 || !strings.Contains(processes.Body.String(), `"processes":`) {
 		t.Fatalf("processes=%s", processes.Body.String())
 	}
 	for _, path := range []string{"/api/v1/host/processes?limit=51", "/api/v1/host/processes?limit=0", "/api/v1/host/processes?limit=abc", "/api/v1/host/processes?sort=disk"} {
@@ -93,7 +93,7 @@ func TestHostOverviewAndProcesses(t *testing.T) {
 
 func TestInvalidCreateAndAction(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := New(config.Config{}, docker.NewDemo())
+	router := New(config.Config{}, testutil.NewDocker())
 	for _, body := range []string{`{}`, `{"name":"bad/name","image":"nginx:alpine"}`, `{"name":"valid","image":"nginx:alpine","host_port":8088}`, `{"name":"valid","image":"nginx:alpine","host_port":70000,"container_port":80}`, `{"name":"valid","image":" "}`} {
 		result := call(router, "POST", "/api/v1/docker/containers", body, "", "")
 		if result.Code != 400 {
@@ -105,7 +105,7 @@ func TestInvalidCreateAndAction(t *testing.T) {
 		t.Fatalf("unsupported action accepted: %d", result.Code)
 	}
 	logs := call(router, "GET", "/api/v1/docker/containers/a1b2c3d4e5f6/logs", "", "", "")
-	if logs.Code != 200 || !strings.Contains(logs.Body.String(), "[demo]") {
+	if logs.Code != 200 || !strings.Contains(logs.Body.String(), "container initialized") {
 		t.Fatalf("invalid logs: %s", logs.Body.String())
 	}
 }

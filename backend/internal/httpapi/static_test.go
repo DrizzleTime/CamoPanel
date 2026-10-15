@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"camopanel/backend/internal/config"
-	"camopanel/backend/internal/docker"
+	"camopanel/backend/internal/testutil"
 )
 
 func TestStaticFilesAndSPAFallback(t *testing.T) {
@@ -16,7 +16,7 @@ func TestStaticFilesAndSPAFallback(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	router := New(config.Config{WebDir: root}, docker.NewDemo())
+	router := New(config.Config{WebDir: root}, testutil.NewDocker())
 	for _, test := range []struct {
 		path   string
 		status int

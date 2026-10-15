@@ -87,7 +87,7 @@ func New(cfg config.Config, service docker.Service) *gin.Engine {
 		c.Next()
 		dep.auditMutating(c)
 	})
-	mountHost(api, host.New(cfg.Mode))
+	mountHost(api, host.New())
 	api.GET("/docker/overview", func(c *gin.Context) {
 		s, err := service.Snapshot(c.Request.Context())
 		if err != nil {
@@ -129,14 +129,14 @@ func New(cfg config.Config, service docker.Service) *gin.Engine {
 	})
 
 	// Initialize Nginx supervisor, SSL manager, site service, and store service
-	nginxSup, _ := nginx.NewSupervisor(cfg.DataDir, cfg.Mode, service, cfg.NginxPort, cfg.NginxSSLPort)
+	nginxSup, _ := nginx.NewSupervisor(cfg.DataDir, service, cfg.NginxPort, cfg.NginxSSLPort)
 	if nginxSup != nil {
 		_ = nginxSup.EnsureRunning(context.Background())
 	}
 	sslMgr := site.NewSSLManager(cfg.DataDir, cfg.ACMEEmail)
 	sslMgr.SetDirectory(cfg.ACMEDirectory)
 	siteSvc, _ := site.NewService(cfg.DataDir, nginxSup, sslMgr, service)
-	storeSvc, _ := store.NewService(cfg.DataDir, cfg.Mode, service)
+	storeSvc, _ := store.NewService(cfg.DataDir, service)
 
 	// App Store Endpoints
 	api.GET("/store/apps", func(c *gin.Context) {

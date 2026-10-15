@@ -5,7 +5,6 @@ import "testing"
 func TestPublicListenerRequiresToken(t *testing.T) {
 	t.Setenv("CAMO_ADDR", "0.0.0.0:8080")
 	t.Setenv("CAMO_API_TOKEN", "")
-	t.Setenv("DOCKER_MODE", "demo")
 	if _, err := Load(); err == nil {
 		t.Fatal("public listener accepted without a token")
 	}
@@ -14,18 +13,10 @@ func TestPublicListenerRequiresToken(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestRejectInvalidMode(t *testing.T) {
-	t.Setenv("DOCKER_MODE", "invalid")
-	if _, err := Load(); err == nil {
-		t.Fatal("invalid mode accepted")
-	}
-}
-
 func TestEnvironmentLoginConfiguration(t *testing.T) {
 	t.Setenv("CAMO_ADDR", "127.0.0.1:8080")
 	t.Setenv("CAMO_DATA_DIR", t.TempDir())
 	t.Setenv("CAMO_API_TOKEN", "")
-	t.Setenv("DOCKER_MODE", "demo")
 	t.Setenv("CAMO_ADMIN_USERNAME", "operator")
 	t.Setenv("CAMO_ADMIN_PASSWORD", "")
 	if _, err := Load(); err == nil {

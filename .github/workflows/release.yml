@@ -1,0 +1,57 @@
+name: Release native binaries
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+      - run: bun install --frozen-lockfile
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Check installer and backend
+        run: |
+          bash -n install.sh scripts/package-release.sh
+          shellcheck install.sh scripts/package-release.sh
+          bun run test
+      - name: Package amd64 and arm64 releases
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: bash scripts/package-release.sh "$RELEASE_VERSION"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          if [[ "$RELEASE_VERSION" == *-* ]]; then
+            release_flags=(--prerelease)
+          else
+            release_flags=(--latest)
+          fi
+          gh release create "$RELEASE_VERSION" \
+            dist/camopanel_linux_amd64.tar.gz dist/camopanel_linux_arm64.tar.gz \
+            dist/checksums.txt dist/install.sh \
+            --verify-tag --title "CamoPanel $RELEASE_VERSION" --generate-notes "${release_flags[@]}"

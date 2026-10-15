@@ -13,7 +13,6 @@ import (
 
 type Config struct {
 	Address       string
-	Mode          string
 	DockerHost    string
 	Token         string
 	AdminUsername string
@@ -27,7 +26,6 @@ type Config struct {
 	ACMEDirectory string
 	TLSCert       string
 	TLSKey        string
-	Firewall      string
 }
 
 func value(key, fallback string) string {
@@ -50,7 +48,6 @@ func intValue(key string, fallback int) int {
 func Load() (Config, error) {
 	c := Config{
 		Address:       value("CAMO_ADDR", "127.0.0.1:8080"),
-		Mode:          value("DOCKER_MODE", "demo"),
 		DockerHost:    value("DOCKER_HOST", "unix:///var/run/docker.sock"),
 		Token:         os.Getenv("CAMO_API_TOKEN"),
 		AdminUsername: strings.TrimSpace(value("CAMO_ADMIN_USERNAME", "admin")),
@@ -64,10 +61,6 @@ func Load() (Config, error) {
 		ACMEDirectory: os.Getenv("CAMO_ACME_DIRECTORY"),
 		TLSCert:       os.Getenv("CAMO_TLS_CERT"),
 		TLSKey:        os.Getenv("CAMO_TLS_KEY"),
-		Firewall:      value("CAMO_FIREWALL", "demo"),
-	}
-	if c.Mode != "demo" && c.Mode != "docker" {
-		return c, fmt.Errorf("DOCKER_MODE must be demo or docker")
 	}
 	if c.AdminPassword != "" {
 		if c.AdminUsername == "" || len(c.AdminUsername) > 64 {

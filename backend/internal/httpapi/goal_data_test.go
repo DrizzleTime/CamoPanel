@@ -26,7 +26,7 @@ func TestGoalDataJobs(t *testing.T) {
 	seen := &acmeSeen{}
 	directory := startACMEDirectory(t, &dataDir, seen)
 	t.Setenv("CAMO_ACME_DIRECTORY", directory)
-	router, dir := goalRouter(t, "", "demo")
+	router, dir := goalRouter(t, "")
 	dataDir = dir
 	created := callAs(router, "POST", "/api/v1/sites", `{"name":"filesite","primary_domain":"files.local","type":"static"}`, "", "")
 	mustCode(t, created, 201)
@@ -48,49 +48,30 @@ func TestGoalDataJobs(t *testing.T) {
 	if rec := callAs(router, "GET", "/api/v1/files/content?root=sites&path="+siteID+"/secret.key", "", "", ""); rec.Code == 200 {
 		t.Fatal("private key was readable")
 	}
-	mustCode(t, callAs(router, "POST", "/api/v1/files/mkdir", `{"root":"apps","path":"demo/data"}`, "", ""), 201)
-	mustCode(t, callAs(router, "POST", "/api/v1/files/upload", `{"root":"apps","path":"demo/data/note.txt","content":"app-data"}`, "", ""), 201)
-	mustCode(t, callAs(router, "POST", "/api/v1/files/rename", `{"root":"apps","from":"demo/data/note.txt","to":"demo/data/renamed.txt"}`, "", ""), 200)
-	mustCode(t, callAs(router, "POST", "/api/v1/files/zip", `{"root":"apps","path":"demo/data","dest":"demo/data.zip"}`, "", ""), 201)
-	mustCode(t, callAs(router, "POST", "/api/v1/files/unzip", `{"root":"apps","zip":"demo/data.zip","dest":"demo/unzipped"}`, "", ""), 201)
-	mustCode(t, callAs(router, "DELETE", "/api/v1/files?root=apps&path=demo/data/renamed.txt", "", "", ""), 200)
+	mustCode(t, callAs(router, "POST", "/api/v1/files/mkdir", `{"root":"apps","path":"test-app/data"}`, "", ""), 201)
+	mustCode(t, callAs(router, "POST", "/api/v1/files/upload", `{"root":"apps","path":"test-app/data/note.txt","content":"app-data"}`, "", ""), 201)
+	mustCode(t, callAs(router, "POST", "/api/v1/files/rename", `{"root":"apps","from":"test-app/data/note.txt","to":"test-app/data/renamed.txt"}`, "", ""), 200)
+	mustCode(t, callAs(router, "POST", "/api/v1/files/zip", `{"root":"apps","path":"test-app/data","dest":"test-app/data.zip"}`, "", ""), 201)
+	mustCode(t, callAs(router, "POST", "/api/v1/files/unzip", `{"root":"apps","zip":"test-app/data.zip","dest":"test-app/unzipped"}`, "", ""), 201)
+	mustCode(t, callAs(router, "DELETE", "/api/v1/files?root=apps&path=test-app/data/renamed.txt", "", "", ""), 200)
 
-	mustCode(t, callAs(router, "POST", "/api/v1/databases/mysql/databases", `{"name":"appdb"}`, "", ""), 201)
-	mustCode(t, callAs(router, "POST", "/api/v1/databases/mysql/users", `{"name":"app","password":"db-pass-should-not-log"}`, "", ""), 201)
-	exported := callAs(router, "POST", "/api/v1/databases/mysql/export", `{}`, "", "")
-	mustCode(t, exported, 200)
-	if !strings.Contains(exported.Body.String(), "CREATE DATABASE appdb") || strings.Contains(exported.Body.String(), "db-pass-should-not-log") {
-		t.Fatalf("export: %s", exported.Body.String())
+	for _, operation := range []struct{ method, path string }{
+		{"POST", "/databases/mysql/databases"}, {"POST", "/databases/mysql/users"},
+		{"POST", "/databases/mysql/export"}, {"POST", "/databases/postgres/import"},
+		{"POST", "/databases/mysql/exec"}, {"POST", "/databases/redis/keys"},
+		{"GET", "/databases/redis/keys"}, {"DELETE", "/databases/redis/keys"},
+	} {
+		mustCode(t, callAs(router, operation.method, "/api/v1"+operation.path, `{}`, "", ""), 501)
 	}
-	sql := jsonField(t, exported.Body.Bytes(), "sql")
-	mustCode(t, callAs(router, "POST", "/api/v1/databases/postgres/import", `{"sql":`+mustJSON(sql)+`}`, "", ""), 200)
-	again := callAs(router, "POST", "/api/v1/databases/postgres/export", `{}`, "", "")
-	mustCode(t, again, 200)
-	if !strings.Contains(again.Body.String(), "CREATE DATABASE appdb") {
-		t.Fatalf("import missing: %s", again.Body.String())
-	}
-	mustCode(t, callAs(router, "POST", "/api/v1/databases/mysql/exec", `{"sql":"SELECT 1","password":"db-pass-should-not-log"}`, "", ""), 200)
-	mustCode(t, callAs(router, "POST", "/api/v1/databases/redis/keys", `{"key":"user:1"}`, "", ""), 201)
-	mustCode(t, callAs(router, "POST", "/api/v1/databases/redis/keys", `{"key":"user:2"}`, "", ""), 201)
-	mustCode(t, callAs(router, "POST", "/api/v1/databases/redis/keys", `{"key":"other"}`, "", ""), 201)
-	scanned := callAs(router, "GET", "/api/v1/databases/redis/keys?prefix=user:&limit=1", "", "", "")
-	mustCode(t, scanned, 200)
-	if strings.Count(scanned.Body.String(), "user:") != 1 {
-		t.Fatalf("scan not limited: %s", scanned.Body.String())
-	}
-	mustCode(t, callAs(router, "DELETE", "/api/v1/databases/redis/keys?key=user:1", "", "", ""), 200)
-	left := callAs(router, "GET", "/api/v1/databases/redis/keys?prefix=user:", "", "", "")
-	if strings.Contains(left.Body.String(), "user:1") {
-		t.Fatalf("key still present: %s", left.Body.String())
+	listedDB := callAs(router, "GET", "/api/v1/databases", "", "", "")
+	mustCode(t, listedDB, 200)
+	if strings.Contains(listedDB.Body.String(), `"installed":true`) {
+		t.Fatal("unconfigured databases marked installed")
 	}
 	missing := callAs(router, "GET", "/api/v1/databases/mongo", "", "", "")
 	mustCode(t, missing, 200)
-	if !strings.Contains(missing.Body.String(), `"installed":false`) || !strings.Contains(missing.Body.String(), "/store?app=mongo") {
-		t.Fatalf("missing db: %s", missing.Body.String())
-	}
-	auditRaw, _ := os.ReadFile(filepath.Join(dir, "audit.jsonl"))
-	if !strings.Contains(string(auditRaw), "SELECT 1") || strings.Contains(string(auditRaw), "db-pass-should-not-log") {
-		t.Fatalf("sql audit: %s", auditRaw)
+	if !strings.Contains(missing.Body.String(), `"installed":false`) {
+		t.Fatal(missing.Body.String())
 	}
 
 	backup := callAs(router, "POST", "/api/v1/backups/sites/"+siteID, `{}`, "", "")

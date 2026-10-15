@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -126,21 +125,5 @@ func TestNewEngineRejectsOtherTransports(t *testing.T) {
 	}
 	if _, err := NewEngine("unix:///var/run/docker.sock"); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestDemoSnapshotIsIndependent(t *testing.T) {
-	demo := NewDemo()
-	snapshot, _ := demo.Snapshot(context.Background())
-	original := snapshot.Containers[0].State
-	if err := demo.Action(context.Background(), snapshot.Containers[0].ID, "stop"); err != nil {
-		t.Fatal(err)
-	}
-	if snapshot.Containers[0].State != original {
-		t.Fatal("snapshot changed after mutation")
-	}
-	newSnapshot, _ := demo.Snapshot(context.Background())
-	if bytes.Equal([]byte(newSnapshot.Containers[0].State), []byte(original)) {
-		t.Fatal("action did not change state")
 	}
 }

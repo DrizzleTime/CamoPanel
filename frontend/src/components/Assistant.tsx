@@ -100,7 +100,7 @@ export function Assistant({ data }: { data: Snapshot | null }) {
       : '当前所有容器均处于运行状态。'
     : `主机：${data.engine.Name}\nDocker：${data.engine.ServerVersion}\nCPU：${data.engine.NCPU} 核\n内存：${formatBytes(
         data.engine.MemTotal
-      )}\n${data.mode === 'demo' ? '这些是演示环境数据。' : '信息来自当前 Docker 引擎。'}`;
+      )}\n信息来自当前 Docker 引擎。`;
 
   return (
     <section {...stylex.props(styles.container)} aria-label="运维助手">

@@ -14,7 +14,6 @@ import (
 	"camopanel/backend/internal/certs"
 	"camopanel/backend/internal/config"
 	"camopanel/backend/internal/cron"
-	"camopanel/backend/internal/dbconsole"
 	"camopanel/backend/internal/docker"
 	"camopanel/backend/internal/files"
 	"camopanel/backend/internal/firewall"
@@ -38,7 +37,6 @@ type platform struct {
 	cron      *cron.Scheduler
 	firewall  *firewall.Manager
 	alerts    *alert.Manager
-	db        *dbconsole.Console
 	sites     *site.Service
 	nginx     *nginx.Supervisor
 	store     *store.Service
@@ -46,7 +44,7 @@ type platform struct {
 }
 
 func openPlatform(cfg config.Config, service docker.Service) *platform {
-	p := &platform{cfg: cfg, docker: service, host: host.New(cfg.Mode), alerts: alert.New(), db: dbconsole.NewDemo(), terms: "", downloads: newFileDownloads()}
+	p := &platform{cfg: cfg, docker: service, host: host.New(), alerts: alert.New(), terms: "", downloads: newFileDownloads()}
 	if cfg.DataDir == "" {
 		return p
 	}
@@ -57,11 +55,7 @@ func openPlatform(cfg config.Config, service docker.Service) *platform {
 	p.files, _ = files.NewWithServerRoot(cfg.DataDir, cfg.FilesRoot)
 	p.backups, _ = backup.Open(cfg.DataDir, 5)
 	p.cron, _ = cron.Open(cfg.DataDir)
-	if cfg.Firewall == "system" {
-		p.firewall = firewall.NewSystem(cfg.PanelPort())
-	} else {
-		p.firewall = firewall.NewDemo(cfg.PanelPort())
-	}
+	p.firewall = firewall.NewSystem(cfg.PanelPort())
 	return p
 }
 
@@ -326,16 +320,8 @@ func (p *platform) finish(api *gin.RouterGroup, sites *site.Service, nginxSup *n
 			}
 			return item.ID, nil
 		})
-		p.cron.Register("backup_database", func(_ context.Context, job cron.Job) (string, error) {
-			dump, err := p.db.Export(job.Payload["kind"])
-			if err != nil {
-				return "", err
-			}
-			item, err := p.backups.CreateBytes("database", job.Payload["kind"], job.Payload["kind"], []byte(dump))
-			if err != nil {
-				return "", err
-			}
-			return item.ID, nil
+		p.cron.Register("backup_database", func(_ context.Context, _ cron.Job) (string, error) {
+			return "", errString("数据库控制台尚未接入真实数据库，无法执行备份")
 		})
 		p.cron.Register("backup_directory", func(_ context.Context, job cron.Job) (string, error) {
 			item, err := p.backups.CreateDir(job.Payload["path"])

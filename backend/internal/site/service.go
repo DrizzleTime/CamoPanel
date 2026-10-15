@@ -443,7 +443,7 @@ func (s *Service) RenewHTTP01(ctx context.Context, id string, domains []string) 
 }
 
 // ensureRuntime creates the proxied runtime container when it is not already present.
-// The image is one already in the local demo catalog; creation does not pull.
+// The image is one already in the local image catalog; creation does not pull.
 func (s *Service) ensureRuntime(ctx context.Context, name string) error {
 	if s.docker == nil {
 		return fmt.Errorf("运行时容器需要容器引擎")

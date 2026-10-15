@@ -64,7 +64,7 @@ type Process struct {
 	RSS        uint64  `json:"rss"`
 }
 
-// Sampler reads host metrics. demo and the real machine each have an implementation.
+// Sampler reads metrics from the local machine.
 type Sampler interface {
 	Overview(now time.Time) (Overview, error)
 	Processes(now time.Time, limit int, sortBy string) ([]Process, error)

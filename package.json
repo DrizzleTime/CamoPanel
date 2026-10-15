@@ -11,9 +11,11 @@
     "dev:api": "cd backend && go run ./cmd/server",
     "dev:web": "bun run --cwd frontend dev",
     "build": "bun run --cwd frontend build && cd backend && go build -buildvcs=false -o ../bin/camopanel ./cmd/server",
-    "test": "bun run test:web && bun run test:api",
+    "test": "bun run test:web && bun run test:api && bun run test:install",
     "test:web": "bun run --cwd frontend typecheck",
     "test:api": "cd backend && go test ./...",
-    "test:ui": "bun run --cwd frontend test:ui"
+    "test:ui": "bun run --cwd frontend test:ui",
+    "test:install": "python3 -m unittest discover -s scripts/tests -v",
+    "release": "bash scripts/package-release.sh"
   }
 }

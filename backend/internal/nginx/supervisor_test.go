@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"camopanel/backend/internal/docker"
+	"camopanel/backend/internal/testutil"
 )
 
 func TestSupervisorInitAndStatus(t *testing.T) {
 	tmpDir := t.TempDir()
-	demo := docker.NewDemo()
+	fake := testutil.NewDocker()
 
-	sup, err := NewSupervisor(tmpDir, "demo", demo, 8080, 8443)
+	sup, err := NewSupervisor(tmpDir, fake, 8080, 8443)
 	if err != nil {
 		t.Fatalf("new supervisor failed: %v", err)
 	}

@@ -25,7 +25,6 @@ type Status struct {
 type Supervisor struct {
 	mu            sync.RWMutex
 	dataDir       string
-	dockerMode    string
 	dockerService docker.Service
 	httpPort      int
 	httpsPort     int
@@ -33,14 +32,13 @@ type Supervisor struct {
 	containerID   string
 }
 
-func NewSupervisor(dataDir, dockerMode string, dockerService docker.Service, httpPort, httpsPort int) (*Supervisor, error) {
+func NewSupervisor(dataDir string, dockerService docker.Service, httpPort, httpsPort int) (*Supervisor, error) {
 	absDataDir, err := filepath.Abs(dataDir)
 	if err != nil {
 		return nil, err
 	}
 	s := &Supervisor{
 		dataDir:       absDataDir,
-		dockerMode:    dockerMode,
 		dockerService: dockerService,
 		httpPort:      httpPort,
 		httpsPort:     httpsPort,

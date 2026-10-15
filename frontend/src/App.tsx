@@ -66,20 +66,6 @@ const styles = stylex.create({
     flexDirection: 'column',
     minHeight: 0,
   },
-  demoBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#fffcf3',
-    border: '1px solid #f3e8c9',
-    color: '#94652b',
-    padding: '11px 14px',
-    borderRadius: 8,
-    fontSize: 'calc(var(--font-size) - 2px)',
-    lineHeight: 1.55,
-    marginBottom: 24,
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
-  },
   error: {
     backgroundColor: '#fef2f2',
     color: '#b91c1c',
@@ -442,15 +428,6 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
         />
 
         <div {...stylex.props(styles.content, page === 'files' && styles.filesContent)}>
-          {data?.mode === 'demo' && page !== 'files' && (
-            <div {...stylex.props(styles.demoBanner)}>
-              <Icon name="info" size={16} />
-              <span>
-                演示环境 · 操作仅影响演示数据，服务重启后恢复。真实引擎可在连接设置中查看配置说明。
-              </span>
-            </div>
-          )}
-
           {error && page !== 'files' && (
             <div {...stylex.props(styles.error)} role="alert">
               <span>{error}{data ? ' · 页面保留上次成功同步的数据。' : ' · 请确认后端已启动。'}</span>
@@ -619,7 +596,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
                   <PanelHeader
                     icon={<Icon name="server" size={17} />}
                     title="引擎信息"
-                    badge={<Badge>{data?.mode === 'demo' ? 'DEMO' : 'LOCAL'}</Badge>}
+                    badge={<Badge>LOCAL</Badge>}
                   />
                   <div {...stylex.props(styles.hostBody)}>
                     <div {...stylex.props(styles.hostTitle)}>
@@ -639,7 +616,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
                       ['Docker 版本', data?.engine.ServerVersion || '—'],
                       ['处理器核心', data ? `${data.engine.NCPU} 核` : '—'],
                       ['内存容量', data ? formatBytes(data.engine.MemTotal) : '—'],
-                      ['连接方式', data?.mode === 'demo' ? '内存演示服务' : 'Unix socket'],
+                      ['连接方式', 'Unix socket'],
                     ].map(([label, value]) => (
                       <div key={label} {...stylex.props(styles.hostRow)}>
                         <span>{label}</span>

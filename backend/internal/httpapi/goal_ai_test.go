@@ -10,7 +10,7 @@ import (
 )
 
 func TestGoalAI(t *testing.T) {
-	router, _ := goalRouter(t, "", "demo")
+	router, _ := goalRouter(t, "")
 	settings := callAs(router, "GET", "/api/v1/ai/settings", "", "", "")
 	mustCode(t, settings, 200)
 	if !strings.Contains(settings.Body.String(), "https://api.openai.com/v1") || strings.Contains(settings.Body.String(), `"key_set":true`) {

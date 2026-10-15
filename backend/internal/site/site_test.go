@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"camopanel/backend/internal/docker"
 	"camopanel/backend/internal/nginx"
+	"camopanel/backend/internal/testutil"
 )
 
 func TestNginxConfigGeneration(t *testing.T) {
@@ -72,14 +72,14 @@ func TestNginxConfigGeneration(t *testing.T) {
 
 func TestSiteLifecycleAndSelfSignedSSL(t *testing.T) {
 	tmpDir := t.TempDir()
-	demo := docker.NewDemo()
-	sup, err := nginx.NewSupervisor(tmpDir, "demo", demo, 80, 443)
+	fake := testutil.NewDocker()
+	sup, err := nginx.NewSupervisor(tmpDir, fake, 80, 443)
 	if err != nil {
 		t.Fatalf("new supervisor failed: %v", err)
 	}
 
 	sslMgr := NewSSLManager(tmpDir, "admin@example.com")
-	svc, err := NewService(tmpDir, sup, sslMgr, demo)
+	svc, err := NewService(tmpDir, sup, sslMgr, fake)
 	if err != nil {
 		t.Fatalf("new site service failed: %v", err)
 	}

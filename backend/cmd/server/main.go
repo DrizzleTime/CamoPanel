@@ -28,13 +28,10 @@ func main() {
 		slog.Error("configuration", "error", err)
 		os.Exit(1)
 	}
-	var service docker.Service = docker.NewDemo()
-	if cfg.Mode == "docker" {
-		service, err = docker.NewEngine(cfg.DockerHost)
-		if err != nil {
-			slog.Error("docker configuration", "error", err)
-			os.Exit(1)
-		}
+	service, err := docker.NewEngine(cfg.DockerHost)
+	if err != nil {
+		slog.Error("docker configuration", "error", err)
+		os.Exit(1)
 	}
 	gin.SetMode(gin.ReleaseMode)
 	server := &http.Server{Addr: cfg.Address, Handler: httpapi.New(cfg, service), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Minute, WriteTimeout: 10 * time.Minute, IdleTimeout: 60 * time.Second}
@@ -42,7 +39,7 @@ func main() {
 	defer stop()
 	serveError := make(chan error, 1)
 	go func() {
-		slog.Info("CamoPanel started", "address", cfg.Address, "mode", cfg.Mode)
+		slog.Info("CamoPanel started", "address", cfg.Address, "docker_host", cfg.DockerHost)
 		if err := httpapi.Serve(server, cfg.TLSCert, cfg.TLSKey); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveError <- err
 		}

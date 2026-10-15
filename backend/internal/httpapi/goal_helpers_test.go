@@ -20,16 +20,17 @@ import (
 
 	"camopanel/backend/internal/auth"
 	"camopanel/backend/internal/config"
-	"camopanel/backend/internal/docker"
+	"camopanel/backend/internal/testutil"
 	"github.com/gin-gonic/gin"
 )
 
-func goalRouter(t *testing.T, token string, firewall string) (*gin.Engine, string) {
+func goalRouter(t *testing.T, token string) (*gin.Engine, string) {
 	t.Helper()
+	testutil.DockerCLI(t)
 	gin.SetMode(gin.TestMode)
 	dir := t.TempDir()
-	cfg := config.Config{Token: token, DataDir: dir, Mode: "demo", Address: "127.0.0.1:8080", Firewall: firewall, ACMEDirectory: os.Getenv("CAMO_ACME_DIRECTORY")}
-	return New(cfg, docker.NewDemo()), dir
+	cfg := config.Config{Token: token, DataDir: dir, Address: "127.0.0.1:8080", ACMEDirectory: os.Getenv("CAMO_ACME_DIRECTORY")}
+	return New(cfg, testutil.NewDocker()), dir
 }
 
 func callAs(handler http.Handler, method, path, body, token, cookie string) *httptest.ResponseRecorder {

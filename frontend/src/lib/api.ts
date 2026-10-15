@@ -3,7 +3,7 @@ export interface Container {
   Ports: { IP?: string; PrivatePort: number; PublicPort?: number; Type: string }[];
 }
 export interface Snapshot {
-  mode: 'demo' | 'docker'; generated_at: string;
+  mode: 'docker'; generated_at: string;
   engine: { Name: string; ServerVersion: string; OperatingSystem: string; NCPU: number; MemTotal: number };
   containers: Container[];
   images: { Id: string; RepoTags: string[] | null; Size: number; Created: number }[];
@@ -169,7 +169,7 @@ export interface HostMemory {
 }
 
 export interface HostOverview {
-  mode: 'demo' | 'host';
+  mode: 'host';
   sampled_at: string;
   uptime_seconds: number;
   cpu: { percent: number; cores: number };

@@ -2,126 +2,33 @@ package httpapi
 
 import (
 	"encoding/base64"
-	"strconv"
+	"net/http"
 	"strings"
 
 	"camopanel/backend/internal/cron"
 	"github.com/gin-gonic/gin"
 )
 
+// Database operations stay unavailable until a real database backend is configured.
 func (p *platform) mountDB(api *gin.RouterGroup) {
+	info := func(kind string) gin.H {
+		return gin.H{"kind": kind, "installed": false, "store_path": "/store?app=" + kind}
+	}
 	api.GET("/databases", func(c *gin.Context) {
-		c.JSON(200, p.db.List())
+		c.JSON(200, []gin.H{info("mysql"), info("postgres"), info("redis")})
 	})
-	api.GET("/databases/redis/keys", func(c *gin.Context) {
-		limit, _ := strconv.Atoi(c.Query("limit"))
-		keys, err := p.db.RedisScan(c.Query("prefix"), limit)
-		if err != nil {
-			badRequest(c, err.Error())
-			return
-		}
-		c.JSON(200, gin.H{"keys": keys})
-	})
-	api.POST("/databases/redis/keys", func(c *gin.Context) {
-		var body struct {
-			Key string `json:"key"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil || body.Key == "" {
-			badRequest(c, "请填写键名")
-			return
-		}
-		p.db.RedisAdd(body.Key)
-		c.JSON(201, gin.H{"key": body.Key})
-	})
-	api.DELETE("/databases/redis/keys", func(c *gin.Context) {
-		if err := p.db.RedisDel(c.Query("key")); err != nil {
-			badRequest(c, err.Error())
-			return
-		}
-		c.JSON(200, gin.H{"message": "已删除"})
-	})
+	unavailable := func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"message": "数据库控制台尚未接入真实数据库"}})
+	}
+	api.GET("/databases/redis/keys", unavailable)
+	api.POST("/databases/redis/keys", unavailable)
+	api.DELETE("/databases/redis/keys", unavailable)
 	api.GET("/databases/:kind", func(c *gin.Context) {
-		kind := c.Param("kind")
-		for _, item := range p.db.List() {
-			if item.Kind == kind {
-				c.JSON(200, item)
-				return
-			}
-		}
-		c.JSON(200, p.db.Missing(kind))
+		c.JSON(200, info(c.Param("kind")))
 	})
-	api.POST("/databases/:kind/databases", func(c *gin.Context) {
-		var body struct {
-			Name string `json:"name"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil || body.Name == "" {
-			badRequest(c, "请填写数据库名")
-			return
-		}
-		if err := p.db.CreateDatabase(c.Param("kind"), body.Name); err != nil {
-			badRequest(c, err.Error())
-			return
-		}
-		c.Set("audit_detail", "create database "+body.Name)
-		c.JSON(201, gin.H{"name": body.Name})
-	})
-	api.POST("/databases/:kind/users", func(c *gin.Context) {
-		var body struct {
-			Name     string `json:"name"`
-			Password string `json:"password"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil || body.Name == "" {
-			badRequest(c, "请填写用户名")
-			return
-		}
-		if err := p.db.CreateUser(c.Param("kind"), body.Name, body.Password); err != nil {
-			badRequest(c, err.Error())
-			return
-		}
-		c.Set("audit_detail", "create user "+body.Name)
-		c.JSON(201, gin.H{"name": body.Name})
-	})
-	api.POST("/databases/:kind/export", func(c *gin.Context) {
-		dump, err := p.db.Export(c.Param("kind"))
-		if err != nil {
-			badRequest(c, err.Error())
-			return
-		}
-		c.Set("audit_detail", "export")
-		c.JSON(200, gin.H{"sql": dump})
-	})
-	api.POST("/databases/:kind/import", func(c *gin.Context) {
-		var body struct {
-			SQL string `json:"sql"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			badRequest(c, "请提供 SQL")
-			return
-		}
-		if err := p.db.Import(c.Param("kind"), body.SQL); err != nil {
-			badRequest(c, err.Error())
-			return
-		}
-		c.Set("audit_detail", body.SQL)
-		c.JSON(200, gin.H{"message": "已导入"})
-	})
-	api.POST("/databases/:kind/exec", func(c *gin.Context) {
-		var body struct {
-			SQL      string `json:"sql"`
-			Password string `json:"password"`
-		}
-		if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.SQL) == "" {
-			badRequest(c, "请填写 SQL")
-			return
-		}
-		out, err := p.db.Exec(c.Param("kind"), body.SQL)
-		if err != nil {
-			badRequest(c, err.Error())
-			return
-		}
-		c.Set("audit_detail", body.SQL)
-		c.JSON(200, gin.H{"result": out})
-	})
+	for _, operation := range []string{"databases", "users", "export", "import", "exec"} {
+		api.POST("/databases/:kind/"+operation, unavailable)
+	}
 }
 
 func (p *platform) mountBackups(api *gin.RouterGroup) {

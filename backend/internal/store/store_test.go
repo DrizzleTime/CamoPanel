@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"camopanel/backend/internal/docker"
+	"camopanel/backend/internal/testutil"
 )
 
 func TestPathConstraintsAndVolumeValidation(t *testing.T) {
@@ -82,8 +82,9 @@ services:
 
 func TestStoreAppLifecycle(t *testing.T) {
 	tmpDir := t.TempDir()
-	demo := docker.NewDemo()
-	svc, err := NewService(tmpDir, "demo", demo)
+	testutil.DockerCLI(t)
+	fake := testutil.NewDocker()
+	svc, err := NewService(tmpDir, fake)
 	if err != nil {
 		t.Fatalf("new store service failed: %v", err)
 	}
@@ -147,6 +148,39 @@ func TestStoreAppLifecycle(t *testing.T) {
 	}
 	if _, err := svc.GetInstalled("my-blog"); err == nil {
 		t.Fatalf("app should be deleted")
+	}
+}
+
+func TestComposeFailureDoesNotReportSuccess(t *testing.T) {
+	testutil.DockerCLI(t)
+	svc, err := NewService(t.TempDir(), testutil.NewDocker())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	app, err := svc.Install(ctx, InstallRequest{AppID: "redis", Name: "my-cache"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A missing CLI must leave the existing application and its data intact.
+	t.Setenv("PATH", t.TempDir())
+	for _, action := range []string{"start", "stop", "restart", "uninstall"} {
+		if err := svc.Action(ctx, app.ID, action, true); err == nil {
+			t.Fatalf("%s succeeded without Docker Compose", action)
+		}
+		if current, err := svc.GetInstalled(app.ID); err != nil || current.Status != "running" {
+			t.Fatalf("%s changed application state: %+v %v", action, current, err)
+		}
+		if _, err := os.Stat(app.AppDir); err != nil {
+			t.Fatalf("%s removed application data: %v", action, err)
+		}
+	}
+	if _, err := svc.Install(ctx, InstallRequest{AppID: "redis", Name: "other-cache"}); err == nil {
+		t.Fatal("install succeeded without Docker Compose")
+	}
+	if _, err := svc.GetInstalled("other-cache"); err == nil {
+		t.Fatal("failed installation was marked installed")
 	}
 }
 
@@ -226,8 +260,9 @@ func TestAppStoreSpecificationAndLoader(t *testing.T) {
 
 	// 5. Test Auto password generation during Install
 	tmpDir := t.TempDir()
-	demo := docker.NewDemo()
-	svc, err := NewService(tmpDir, "demo", demo)
+	testutil.DockerCLI(t)
+	fake := testutil.NewDocker()
+	svc, err := NewService(tmpDir, fake)
 	if err != nil {
 		t.Fatalf("new service failed: %v", err)
 	}
@@ -299,4 +334,3 @@ services:
 		t.Fatalf("custom app was not loaded in merged catalog")
 	}
 }
-

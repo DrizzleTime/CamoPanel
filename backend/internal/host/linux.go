@@ -14,7 +14,7 @@ import (
 )
 
 // ErrUnreadable is returned when live host metrics cannot be read.
-// Callers must not replace it with demo data.
+// Callers must propagate read failures.
 var ErrUnreadable = errors.New("无法读取主机状态")
 
 type linuxSampler struct {

@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"camopanel/backend/internal/config"
-	"camopanel/backend/internal/docker"
+	"camopanel/backend/internal/testutil"
 )
 
 func TestServerFileHTTPBinaryAndBatch(t *testing.T) {
 	root := t.TempDir()
-	router := New(config.Config{DataDir: t.TempDir(), FilesRoot: root, Mode: "demo", Address: "127.0.0.1:8080"}, docker.NewDemo())
+	router := New(config.Config{DataDir: t.TempDir(), FilesRoot: root, Address: "127.0.0.1:8080"}, testutil.NewDocker())
 	roots := callAs(router, "GET", "/api/v1/files/roots", "", "", "")
 	mustCode(t, roots, 200)
 	if !strings.Contains(roots.Body.String(), root) {
@@ -91,7 +91,7 @@ func TestServerFileHTTPBinaryAndBatch(t *testing.T) {
 
 func TestViewerCannotModifyServerFiles(t *testing.T) {
 	root := t.TempDir()
-	router := New(config.Config{DataDir: t.TempDir(), FilesRoot: root, Mode: "demo", Address: "127.0.0.1:8080"}, docker.NewDemo())
+	router := New(config.Config{DataDir: t.TempDir(), FilesRoot: root, Address: "127.0.0.1:8080"}, testutil.NewDocker())
 	mustCode(t, callAs(router, "POST", "/api/v1/auth/bootstrap", `{"password":"admin-password-123"}`, "", ""), 201)
 	login := callAs(router, "POST", "/api/v1/auth/login", `{"username":"admin","password":"admin-password-123"}`, "", "")
 	mustCode(t, login, 200)
@@ -122,7 +122,7 @@ func TestDownloadLinkRequiresAuthAndIsBoundToFile(t *testing.T) {
 	if err := os.WriteFile(second, []byte("second"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	router := New(config.Config{DataDir: t.TempDir(), FilesRoot: root, Token: "download-token", Mode: "demo", Address: "127.0.0.1:8080"}, docker.NewDemo())
+	router := New(config.Config{DataDir: t.TempDir(), FilesRoot: root, Token: "download-token", Address: "127.0.0.1:8080"}, testutil.NewDocker())
 	endpoint := "/api/v1/files/download-link?root=server&path=" + url.QueryEscape(first)
 	mustCode(t, callAs(router, "GET", endpoint, "", "", ""), 401)
 	issued := callAs(router, "GET", endpoint, "", "download-token", "")

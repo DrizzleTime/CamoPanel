@@ -63,7 +63,7 @@ export const test = base.extend<{ mockedApi: void }>({
           body = { actor: "admin", role: "admin" };
         else if (path === "/docker/overview")
           body = {
-            mode: "demo",
+            mode: "docker",
             generated_at: "",
             engine: {
               Name: "preview",

@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | GET | `/api/health` | 进程健康，不检查 Docker 连通性，无需令牌 |
 | GET | `/api/v1/docker/overview` | 模式、引擎、容器、镜像、网络、数据卷和同步时间 |
-| GET | `/api/v1/host/overview` | 主机 CPU、内存、交换区、负载、磁盘、网卡和近一小时采样。`mode` 为 `demo` 或 `host` |
+| GET | `/api/v1/host/overview` | 主机 CPU、内存、交换区、负载、磁盘、网卡和近一小时采样。`mode` 固定为 `host` |
 | GET | `/api/v1/host/processes` | 占用最高的进程。`limit` 默认 10，范围 1–50；`sort` 为 `cpu` 或 `mem` |
 | POST | `/api/v1/docker/containers` | 创建容器，返回 201 和 `{ "id": "..." }` |
 | POST | `/api/v1/docker/containers/:id/start` | 启动 |
@@ -60,7 +60,7 @@
 
 端口必须同时填写，范围 1–65535；不映射时均为 0 或省略。名称 2–63 字符，以字母或数字开头，其余字符允许字母、数字、下划线、点和短横线。镜像须已存在于本地。
 
-概览的集合字段使用 Docker 字段名称（例如 `Id`、`Names`、`RepoTags`），顶层为 `mode`、`engine`、`containers`、`images`、`networks`、`volumes` 和 `generated_at`。`mode` 为 `demo` 或 `docker`，同步时间为 UTC RFC 3339。
+概览的集合字段使用 Docker 字段名称（例如 `Id`、`Names`、`RepoTags`），顶层为 `mode`、`engine`、`containers`、`images`、`networks`、`volumes` 和 `generated_at`。`mode` 固定为 `docker`，同步时间为 UTC RFC 3339。
 
 错误格式为 `{ "error": { "message": "..." } }`。常见状态码：400 参数错误、401 令牌错误、403 请求来源错误、404 资源不存在、409 操作冲突、503 Docker 不可用。
 
@@ -146,3 +146,5 @@
 创建容器仍接受原来的单端口字段。也可以传 `ports`、`env`、`command`、`restart_policy` 和 `binds`。数据目录之外的挂载需要 `confirm_host_mount`。网站类型为 `static`、`proxy` 或 `runtime`；运行环境为 `php`、`node`、`java`、`go`、`python`。自定义 Nginx 片段不能离开 server 块，也不能引用任意宿主机文件。
 
 每次会改数据的 `/api/v1` 请求都会追加审计：时间、账号、方法、路径和结果。审计不保存密码、私钥或令牌。只读账号可以看概览、网站、容器和日志；创建、删除、安装、证书、Compose、上传、防火墙和终端返回 403。
+
+数据库控制台尚未接入真实数据库：查询返回 `installed: false`，SQL、导入导出及 Redis 键操作返回 HTTP 501。防火墙规则管理尚未接入系统后端，状态返回 `available: false`，写入请求返回错误。
